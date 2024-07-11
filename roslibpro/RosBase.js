@@ -1,3 +1,4 @@
+import ROSLIB from 'roslib';
 export class RosBase {
     constructor(rosip, topic_name, topic_type, rate = 10, is_service = false) {
         this.rosip = rosip;
@@ -11,7 +12,7 @@ export class RosBase {
     }
 
     connectROS(callback = {
-        onError: () => { },
+        onError: (error) => { },
         onConnection: () => { },
         onClose: () => { }
     }, rate = this.rate, call_from_outter = true) {
@@ -30,7 +31,7 @@ export class RosBase {
             this.ros.on("error", error => {
                 this.ros = null;
                 if (call_from_outter) this.connected_cnt++;
-                callback.onError();
+                callback.onError(error);
             });
 
             this.ros.on("connection", () => {

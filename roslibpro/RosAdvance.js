@@ -6,7 +6,7 @@ export class RosAdvance extends RosBase {
         this._keepConnection_running = false;
     }
 
-    connectROS(callback = { onError: () => { }, onConnection: () => { }, onClose: () => { } },
+    connectROS(callback = { onError: (error) => { }, onConnection: () => { }, onClose: () => { } },
         rate = null, auto_retry = true, call_from_outter = true) {
         this.callback = callback;
         this.rate = rate;
