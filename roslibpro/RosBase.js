@@ -1,4 +1,3 @@
-import ROSLIB from 'roslib';
 export class RosBase {
     constructor(rosip, topic_name, topic_type, rate = 10, is_service = false) {
         this.rosip = rosip;
@@ -8,7 +7,8 @@ export class RosBase {
         this.self_closed = false;
         this.connected_cnt = 0;
         this.is_service = is_service;
-        this.ros = null;
+        this.getROS = ()=>null;
+        this.topic = ()=>null;
     }
 
     connectROS(callback = {
@@ -24,39 +24,43 @@ export class RosBase {
         }
 
         try {
-            this.ros = new ROSLIB.Ros({
+            const ros = new ROSLIB.Ros({
                 url: `ws://${this.rosip}`
             });
+            this.getROS = ()=>ros;
 
-            this.ros.on("error", error => {
-                this.ros = null;
+            this.getROS().on("error", error => {
+                
+        this.getROS = ()=>null;
                 if (call_from_outter) this.connected_cnt++;
                 callback.onError(error);
             });
 
-            this.ros.on("connection", () => {
+            this.getROS().on("connection", () => {
                 this.self_closed = false;
                 if (call_from_outter) this.connected_cnt++;
                 callback.onConnection();
             });
 
-            this.ros.on("close", () => {
-                this.ros = null;
+            this.getROS().on("close", () => {
+                
+        this.getROS = ()=>null;
                 callback.onClose();
             });
 
-            this.topic = this.is_service
+            const topic = this.is_service
                 ? new ROSLIB.Service({
-                    ros: this.ros,
+                    ros: this.getROS(),
                     name: this.topic_name,
                     serviceType: this.topic_type
                 })
                 : new ROSLIB.Topic({
-                    ros: this.ros,
+                    ros: this.getROS(),
                     name: this.topic_name,
                     messageType: this.topic_type,
                     rate: rate
                 });
+            this.topic = ()=>topic;
         } catch (e) {
             return false;
         }
@@ -64,30 +68,31 @@ export class RosBase {
     }
 
     isNULL() {
-        return this.ros === null || this.ros.socket === null;
+        return this.getROS() === null || this.getROS().socket === null;
     }
 
     isConnectDone() {
-        return !this.isNULL() && this.ros.socket.readyState === WebSocket.OPEN;
+        return !this.isNULL() && this.getROS().socket.readyState === WebSocket.OPEN;
     }
 
     isConnecting() {
-        return !this.isNULL() && this.ros.socket.readyState === WebSocket.CONNECTING;
+        return !this.isNULL() && this.getROS().socket.readyState === WebSocket.CONNECTING;
     }
 
     isClosing() {
-        return !this.isNULL() && this.ros.socket.readyState === WebSocket.CLOSING;
+        return !this.isNULL() && this.getROS().socket.readyState === WebSocket.CLOSING;
     }
 
     isClosed() {
-        return this.isNULL() || this.ros.socket.readyState === WebSocket.CLOSED;
+        return this.isNULL() || this.getROS().socket.readyState === WebSocket.CLOSED;
     }
 
     close(is_self_closed = true) {
         this.self_closed = is_self_closed;
-        if (this.ros && this.ros.socket && this.ros.socket.readyState !== WebSocket.CLOSED) {
-            this.ros.close();
+        if (this.getROS() && this.getROS().socket && this.getROS().socket.readyState !== WebSocket.CLOSED) {
+            this.getROS().close();
         }
-        this.ros = null;
+        
+        this.getROS = ()=>null;
     }
 }

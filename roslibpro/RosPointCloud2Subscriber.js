@@ -33,7 +33,7 @@ PointCloud2Config.supportedTypes = [
 export class RosPointCloud2Subscriber extends RosSubscriber{
 
     subscribe(msg){
-        this.points_threejs = null;
+        this.points_threejs = ()=>null;
         //this.points_threejs will be set at below
         const pointsinfo = this.onPointCloud2Data(msg);
     }
@@ -133,7 +133,8 @@ export class RosPointCloud2Subscriber extends RosSubscriber{
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
         geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
         geometry.computeBoundingSphere();
-        this.points_threejs = new THREE.Points(geometry,  new THREE.PointsMaterial({size: 0.1, vertexColors:true}));
+        const points_threejs = new THREE.Points(geometry,  new THREE.PointsMaterial({size: 0.1, vertexColors:true}));
+        this.points_threejs = ()=>points_threejs;
         
         return {type: "points", data: npoints, zmin: zmin, zmax: zmin + zrange}
 
@@ -212,7 +213,8 @@ export class RosPointCloud2Subscriber extends RosSubscriber{
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
         geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
         geometry.computeBoundingSphere();
-        this.points_threejs = new THREE.Points(geometry,  new THREE.PointsMaterial({size: 0.1,vertexColors: true}));
+        const points_threejs = new THREE.Points(geometry,  new THREE.PointsMaterial({size: 0.1,vertexColors: true}));
+        this.points_threejs = ()=>points_threejs;
         return {type: "points", data: npoints}
 
     // this.draw([

@@ -8,7 +8,7 @@ export class RosAdvance extends RosBase {
 
     connectROS(callback = { onError: (error) => { }, onConnection: () => { }, onClose: () => { } },
         rate = null, auto_retry = true, call_from_outter = true) {
-        this.callback = callback;
+        this.callback = ()=>callback;
         this.rate = rate;
         if (!super.connectROS(callback, auto_retry, call_from_outter)) return;
         this.createTopic();
@@ -23,7 +23,7 @@ export class RosAdvance extends RosBase {
             if (this.self_closed && this.isNULL() && this.connected_cnt > 0) return;
             if (this.isConnectDone() || this.isConnecting() || this.isClosing()) return;
             if (!this.self_closed && this.isClosed() && this.connected_cnt > 0) {
-                super.connectROS(this.callback, this.rate, false, false, this.is_service);
+                super.connectROS(this.callback(), this.rate, false, false, this.is_service);
                 this.createTopic();
             }
         }, interval);

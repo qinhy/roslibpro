@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.js"></script>
+    <title>Test</title>
+</head>
+
+<body>    
+    <!-- <script src="./roslibpro/Storages.js"></script> -->
+    <script type="module">
+        import {RosClientManager} from "./roslibpro/RosClientManager.js";
+        const roslm = new RosClientManager();
+        roslm.clean()
+        {
+            const uuid = roslm.add_new_service('192.168.1.163:9090','/rosapi/topics', 'rosapi/Topics');
+            console.log(roslm.get(uuid).connectROS());
+            {
+                roslm.get(uuid).callService().then((result) => {
+                            if (result) {
+                                console.log(result);
+                            }
+                        }).catch((err) => {
+                            console.log(err);
+                        });
+            }
+        }
+        const ss = roslm.dumps();
+        console.log(roslm.dumps())
+
+        roslm.clean();
+        roslm.loads(ss);
+        {
+            const uuid = roslm.srvs();
+            console.log(roslm.get(uuid).connectROS());
+            {
+                roslm.get(uuid).callService().then((result) => {
+                            if (result) {
+                                console.log(result);
+                            }
+                        }).catch((err) => {
+                            console.log(err);
+                        });
+            }
+        }
+    </script>
+    <!-- <script type="module">
+        import RosClientManager from './roslibpro/RosClientManager.js';
+    </script> -->
+</body>
+
+</html>
