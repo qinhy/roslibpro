@@ -20,7 +20,7 @@ class SingletonStorageController {
     keys(pattern = '*') { console.log(`[${this.constructor.name}]: not implemented`); }
     clean() { this.keys('*').forEach(k => this.delete(k)); }
     dumps() { var res = {}; this.keys('*').forEach(k => res[k] = this.get(k)); return JSON.stringify(res); }
-    loads(jsonString = '{}') { this.clean(); Object.entries(JSON.parse(jsonString)).forEach(d => this.set(d[0], d[1])); }
+    loads(jsonString = '{}') { Object.entries(JSON.parse(jsonString)).forEach(d => this.set(d[0], d[1])); }
 
     _randuuid(prefix = '') {
         return prefix + 'xxxx-xxxx-xxxx-xxxx-xxxx'.replace(/x/g, function () {
