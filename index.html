@@ -10,9 +10,9 @@
 
 <body>    
     <script type="module">
-        import {RosClientManager} from "./roslibpro/RosClientManager.js";
+        import {RosClientManager,RosBridgeManager} from "./roslibpro/RosClientManager.js";
 
-        const rosIP = '192.168.1.171:9090';
+        const rosIP = '192.168.1.158:9090';
         const roslm = new RosClientManager();
         
         const test_srv = ()=>
@@ -32,7 +32,27 @@
                 onClose: () => { }
             });
         }
-        
+        const test_srv2 = ()=>
+        {
+            //'/rosapi/topics', 'rosapi/Topics'
+            //'/rosapi/services', 'rosapi/Services'
+            const uuid = roslm.add_new_service(rosIP,'/rosapi/services', 'rosapi/ServiceType');
+            roslm.get(uuid).connectROS( {
+                onError: (error) => { },
+                onConnection: () => {
+                    roslm.get(uuid).callService(
+                        // {'service': '/rosapi/topics'}
+                    ).then((result) => {
+                        if (result) {
+                            console.log(result);
+                        }
+                        }).catch((err) => {
+                            console.log(err);
+                        });
+                },
+                onClose: () => { }
+            });
+        }
         const test_reload = ()=>
         {
             const ss = roslm.dumps();
@@ -61,13 +81,53 @@
             }
         }
 
-        test_srv();
-        test_reload();
-        test_sub();
+        
+        const rosbm = new RosBridgeManager(rosIP);
+        const test_brm = ()=>
+        {            
+            rosbm.get_topics().then(ts=>{
+                console.log(rosbm.get_rosip())
+                console.log(ts);
+            })     
+            rosbm.get_services().then(ts=>{
+                console.log(ts);
+            })
+            rosbm.add_new_sub('/client_count').then(uuid=>{
+                rosbm.get(uuid).subscribe = (msg)=>{
+                    console.log(msg);
+                }
+                console.log(uuid);
+            })
+        }
+        
+        const test_brm_listen = ()=>
+        {            
+            rosbm.add_sub_listener('/client_count',(msg)=>{
+                console.log('!!!!',msg);
+            }).then(f_uuid=>
+                {
+                    console.log(rosbm);
+                    console.log(f_uuid);
+                    
+                    rosbm.add_sub_listener('/client_count',(msg)=>{
+                        console.log('####',msg);
+                    }).then(s_uuid=>
+                        {
+                            console.log(s_uuid);
+                            // can try delete first one
+                        }
+                    );
+                }
+            );
+        }
+        // test_srv2();
+        // test_reload();
+        // test_sub();
+        // test_brm();
+        rosbm.onConnection = ()=>{            
+            test_brm_listen();
+        }
     </script>
-    <!-- <script type="module">
-        import RosClientManager from './roslibpro/RosClientManager.js';
-    </script> -->
 </body>
 
 </html>
