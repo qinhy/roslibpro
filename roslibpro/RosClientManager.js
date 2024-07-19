@@ -8,9 +8,9 @@ export class RosClientManager extends SingletonKeyValueStorage{
         return uuid.split(':')[1];
     }
     _key2type(key){
-        const _instance_map = {
-            'pub':RosPublisher,'sub':RosSubscriber,'srv':RosService,}        
-        return _instance_map[key];
+        return{'pub':RosPublisher,
+               'sub':RosSubscriber,
+               'srv':RosService}[key];
     }
     _set_instance(key, rosip, topic_name, topic_type, rate, uuid=null){
         if(!uuid)uuid = `ros:${key}:${this.randuuid()}`;
@@ -55,7 +55,8 @@ export class RosClientManager extends SingletonKeyValueStorage{
 
     loads(jsonStr,rosip=null){
         super.loads(jsonStr);
-        const allmember = this.all_keys().map(uuid => {return {uuid, ...this.get(uuid)}});
-        allmember.forEach(m => this._set_instance(this._uuid2key(m.uuid),rosip??m.rosip, m.topic_name, m.topic_type, m.rate, m.uuid));
+        this.all_keys().map(uuid => {return {uuid, ...this.get(uuid)}})
+            .forEach(m => this._set_instance(this._uuid2key(m.uuid),rosip??m.rosip,
+                                        m.topic_name, m.topic_type, m.rate, m.uuid));
     }
 }
