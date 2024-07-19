@@ -9,7 +9,7 @@ export class RosService extends RosAdvance {
         }
         const client = this.topic();
         const _this = this;
-        this.service_response = null;
+        // this.service_response = null;
         return new Promise((resolve, reject) => {
             try {
                 client.callService(

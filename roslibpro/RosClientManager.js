@@ -36,7 +36,7 @@ class RosClientManager extends SingletonKeyValueStorage{
         this.all_instances().forEach(c => {if(c.connectROS)c.connectROS()});
     }
     close(){
-        this.all_instances().forEach(c => c.close());
+        this.all_instances().forEach(c => {if(c.close)c.close()});
     }
     clean(){
         this.close();
@@ -47,6 +47,7 @@ class RosClientManager extends SingletonKeyValueStorage{
         this.clean();
         this.loads(data,rosip);
         this.connect();
+        return this;
     }
     
     pub_keys(){return this.keys('^ros:pub:*');}
@@ -71,6 +72,9 @@ class RosBridgeManager extends RosClientManager{
             throw Error('please input ros ip')
         }
         super();
+        this.init(rosip,false);
+    }
+    init(rosip,auto_retry = true){
         this.onConnection = () => {};
         this.root_topics_srv_uuid = `ros:srv:root`;
         if(!this.get(this.root_topics_srv_uuid)){
@@ -79,10 +83,10 @@ class RosBridgeManager extends RosClientManager{
                 onError: (e) => {},
                 onConnection: () => {this.onConnection()},
                 onClose: () => {}
-            })
+            },auto_retry)
         }
-        this.root_services_srv_uuid = super.add_new_service(rosip,'/rosapi/services', 'rosapi/ServiceType');
-        this.get(this.root_services_srv_uuid).connectROS()
+        // this.root_services_srv_uuid = super.add_new_service(rosip,'/rosapi/services', 'rosapi/ServiceType');
+        // this.get(this.root_services_srv_uuid).connectROS()
     }
     _test_conn(){        
         if(!this.get(this.root_topics_srv_uuid).isConnectDone()){
@@ -137,6 +141,9 @@ class RosBridgeManager extends RosClientManager{
     _first_sub_uuid(topic_name){
         const uuid = this.sub_keys().filter(s=>this.get(s).topic_name==topic_name)[0];
         return uuid;
+    }
+    _listener_uuid_2_parent_uuid(uuid){
+        return uuid.replace('_listeners','').replace(':'+uuid.split(':').pop(),'');
     }
     _listener_uuid(uuid){
         const type = this._uuid2type(uuid)

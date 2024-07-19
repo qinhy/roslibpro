@@ -15,7 +15,7 @@ export class RosBase {
         onError: (error) => { },
         onConnection: () => { },
         onClose: () => { }
-    }, rate = this.rate, call_from_outter = true) {
+    }, call_from_outter = true) {
         if (this.isConnectDone() || this.isConnecting() || this.isClosing()) return false;
 
         if (call_from_outter) {
@@ -58,7 +58,7 @@ export class RosBase {
                     ros: this.getROS(),
                     name: this.topic_name,
                     messageType: this.topic_type,
-                    rate: rate
+                    rate: this.rate
                 });
             this.topic = ()=>topic;
         } catch (e) {
@@ -89,6 +89,10 @@ export class RosBase {
 
     close(is_self_closed = true) {
         this.self_closed = is_self_closed;
+        
+        if(this.topic() && this.topic().unadvertise)this.topic().unadvertise();
+        this.topic = ()=>null;
+        
         if (this.getROS() && this.getROS().socket && this.getROS().socket.readyState !== WebSocket.CLOSED) {
             this.getROS().close();
         }

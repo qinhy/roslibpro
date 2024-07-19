@@ -7,10 +7,9 @@ export class RosAdvance extends RosBase {
     }
 
     connectROS(callback = { onError: (error) => { }, onConnection: () => { }, onClose: () => { } },
-        rate = null, auto_retry = true, call_from_outter = true) {
+        auto_retry = true, call_from_outter = true) {
         this.callback = ()=>callback;
-        this.rate = rate;
-        if (!super.connectROS(callback, auto_retry, call_from_outter)) return;
+        if (!super.connectROS(callback, call_from_outter)) return;
         this.createTopic();
         if (!this._keepConnection_running && auto_retry) {
             this._keepConnection();
@@ -50,12 +49,6 @@ export class RosAdvance extends RosBase {
     }
 
     close(is_self_closed = true) {
-        ['pub', 'client', 'sub']
-            .filter(r => this[r])
-            .forEach(r => {
-                this[r].unadvertise();
-                this[r] = null;
-            });
         super.close(is_self_closed);
     }
 }
