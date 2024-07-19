@@ -12,28 +12,13 @@
     <!-- <script src="./roslibpro/Storages.js"></script> -->
     <script type="module">
         import {RosClientManager} from "./roslibpro/RosClientManager.js";
-        const roslm = new RosClientManager();
-        roslm.clean()
-        {
-            const uuid = roslm.add_new_service('192.168.1.163:9090','/rosapi/topics', 'rosapi/Topics');
-            console.log(roslm.get(uuid).connectROS());
-            {
-                roslm.get(uuid).callService().then((result) => {
-                            if (result) {
-                                console.log(result);
-                            }
-                        }).catch((err) => {
-                            console.log(err);
-                        });
-            }
-        }
-        const ss = roslm.dumps();
-        console.log(roslm.dumps())
 
-        roslm.clean();
-        roslm.loads(ss);
+        const rosIP = '192.168.1.171:9090';
+        const roslm = new RosClientManager();
+        
+        const test_srv = ()=>
         {
-            const uuid = roslm.srvs();
+            const uuid = roslm.add_new_service(rosIP,'/rosapi/topics', 'rosapi/Topics');
             console.log(roslm.get(uuid).connectROS());
             {
                 roslm.get(uuid).callService().then((result) => {
@@ -45,6 +30,38 @@
                         });
             }
         }
+        
+        const test_reload = ()=>
+        {
+            const ss = roslm.dumps();
+            console.log(roslm.dumps())
+            roslm.clean();
+            roslm.loads(ss);
+            roslm.connect();
+            
+            roslm.srvs()[0].callService().then((result) => {
+                        if (result) {
+                            console.log(result);
+                        }
+                    }).catch((err) => {
+                        console.log(err);
+                    });
+        }
+
+        const test_sub = ()=>
+        {            
+            roslm.clean();
+            const uuid = roslm.add_new_sub(rosIP, '/client_count', 'std_msgs/msg/Int32');
+            const sub = roslm.get(uuid);
+            sub.connectROS();
+            sub.subscribe = (msg)=>{
+                console.log(msg);
+            }
+        }
+
+        test_srv();
+        test_reload();
+        test_sub();
     </script>
     <!-- <script type="module">
         import RosClientManager from './roslibpro/RosClientManager.js';

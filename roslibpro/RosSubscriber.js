@@ -9,6 +9,6 @@ export class RosSubscriber extends RosAdvance {
         });
     }
     subscribe(message) {
-        console.log(this.constructor.name, "subscribe not defined, need to override it");
+        console.log(this.constructor.name, "function of subscribe not defined, need to override it");
     }
 }
