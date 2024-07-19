@@ -19,16 +19,19 @@
         const test_srv = ()=>
         {
             const uuid = roslm.add_new_service(rosIP,'/rosapi/topics', 'rosapi/Topics');
-            console.log(roslm.get(uuid).connectROS());
-            {
-                roslm.get(uuid).callService().then((result) => {
-                            if (result) {
-                                console.log(result);
-                            }
+            roslm.get(uuid).connectROS( {
+                onError: (error) => { },
+                onConnection: () => {
+                    roslm.get(uuid).callService().then((result) => {
+                        if (result) {
+                            console.log(result);
+                        }
                         }).catch((err) => {
                             console.log(err);
                         });
-            }
+                },
+                onClose: () => { }
+            });
         }
         
         const test_reload = ()=>
@@ -40,9 +43,9 @@
             roslm.connect();
             
             roslm.srvs()[0].callService().then((result) => {
-                        if (result) {
-                            console.log(result);
-                        }
+                    if (result) {
+                        console.log(result);
+                    }
                     }).catch((err) => {
                         console.log(err);
                     });
