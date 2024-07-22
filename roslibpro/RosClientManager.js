@@ -177,6 +177,15 @@ class RosBridgeManager extends RosClientManager{
             }
         })
     }
+    delete_sub_listener(uuid){
+        const sub_uuid = this._listener_uuid_2_parent_uuid(uuid);
+        const topic_name = this.get(sub_uuid).topic_name;
+        this.delete(uuid);
+        if (this.get_sub_listener_keys(topic_name).length==0){
+          this.get(sub_uuid).close();
+          this.delete(sub_uuid);
+        }
+    }
     add_new_service(topic_name, topic_type, rate=10){
         this._test_conn();
         return this._set_instance('srv', this.get_rosip(), topic_name, topic_type, rate);
