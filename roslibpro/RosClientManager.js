@@ -27,7 +27,7 @@ class RosClientManager extends SingletonKeyValueStorage{
         return this._set_instance('srv', rosip, topic_name, topic_type, rate);
     }
     all_keys(){        
-        return this.keys('ros:*');
+        return this.keys('^ros:*');
     }
     all_instances(){        
         return this.all_keys().map(k=>this.get(k));
@@ -54,9 +54,9 @@ class RosClientManager extends SingletonKeyValueStorage{
         return this;
     }
     
-    pub_keys(){return this.keys('ros:pub:*');}
-    sub_keys(){return this.keys('ros:sub:*');}
-    srv_keys(){return this.keys('ros:srv:*');}
+    pub_keys(){return this.keys('^ros:pub:*');}
+    sub_keys(){return this.keys('^ros:sub:*');}
+    srv_keys(){return this.keys('^ros:srv:*');}
     
     pubs(){return this.pub_keys().map(k=>this.get(k));}
     subs(){return this.sub_keys().map(k=>this.get(k));}
