@@ -28,7 +28,6 @@ class SingletonStorageController {
         });
     }
 }
-
 class SingletonJavascriptDictStorage {
     static _instance = null;
     static _meta = {};
@@ -40,6 +39,16 @@ class SingletonJavascriptDictStorage {
             this.slaves = [];
         }
         return SingletonJavascriptDictStorage._instance;
+    }
+    get() {
+        return this.store;
+    }
+}
+
+class JavascriptDictStorage {
+    constructor() {        
+        this.store = {};
+        this._meta = {};
     }
     get() {
         return this.store;
@@ -301,19 +310,84 @@ class SingletonIndexedDBStorageController extends SingletonStorageController {
     }
 }
 
+class EventDispatcherController {
+    static ROOT_KEY = 'Event';
+
+    constructor(client = null) {
+        if (client === null) {
+            client = new SingletonJavascriptDictStorageController(new JavascriptDictStorage());
+        }
+        this.client = client;
+    }
+
+    events() {
+        const keys = this.client.keys('*');
+        return keys.map(key => [key, this.client.get(key)]);
+    }
+
+    _find_event(uuid) {
+        const es = this.client.keys(`*:${uuid}`);
+        return es.length === 0 ? [null] : es;
+    }
+
+    get_event(uuid) {
+        return this._find_event(uuid).map(key => this.client.get(key));
+    }
+
+    delete_event(uuid) {
+        return this._find_event(uuid).map(key => this.client.delete(key));
+    }
+
+    set_event(event_name, callback, id = null) {
+        if (id === null) {
+            id = this.client._generateUUID();
+        }
+        this.client.set(`${EventDispatcherController.ROOT_KEY}:${event_name}:${id}`, callback);
+        return id;
+    }
+
+    dispatch(event_name, ...args) {
+        const keys = this.client.keys(`${EventDispatcherController.ROOT_KEY}:${event_name}:*`);
+        keys.forEach(key => {
+            this.client.get(key)(...args);
+        });
+    }
+
+    clean() {
+        return this.client.clean();
+    }
+}
+
 export class SingletonKeyValueStorage extends SingletonStorageController {
     constructor() {
         super();
         this.js_backend();
+        this.event_dispa = new EventDispatcherController();
     }
 
     js_backend() { this.client = new SingletonJavascriptDictStorageController(new SingletonJavascriptDictStorage()); return this; }
     vue_backend() { this.client = new SingletonVueStorageController(new SingletonVueStorage()); return this; }
     indexedDB_backend() { this.client = new SingletonIndexedDBStorageController(new SingletonIndexedDBStorage()); return this; }
 
-    slaves() { return this.client.slaves(); }
-    add_slave(slave) { if(!slave.uuid)slave.uuid=self._randuuid();this.slaves().push(slave);}
-    delete_slave(slave) { this.client.model.slaves = this.client.model.slaves.filter(s=>s.uuid!=slave.uuid)}
+    add_slave(slave,eventNames = ['set', 'delete']) {
+        if (slave.uuid === undefined || slave.uuid === null) {
+            try {
+                slave.uuid = this.randuuid();
+            } catch (error) {
+                this._print(`cannot set uuid to ${slave}. Skip this slave.`);
+                return false;
+            }
+        }
+        for (let m of eventNames) {
+            if (typeof slave[m] === 'function') {
+                this.event_dispa.set_event(m, slave[m].bind(slave), slave.uuid);
+            } else {
+                this._print(`no func of "${m}" in ${slave}. Skip it.`);
+            }
+        }
+        return true;
+    }
+    delete_slave(slave) { return this.event_dispa.delete_event(slave.uuid || null); }
 
     exists(key) { return this.client.exists(key); }
     set(key, value) { return this.client.set(key, value); }
