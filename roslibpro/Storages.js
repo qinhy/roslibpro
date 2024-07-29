@@ -415,8 +415,8 @@ class SingletonKeyValueStorage extends SingletonStorageController {
     set(key, value) { return this._edit('set', key, value); }
     delete(key) { return this._edit('delete', key); }
 
-    exists(key) { return this._hist.try_history(key, () => this.conn.exists(key)); }
-    keys(regx = '*') { return this._hist.try_history(regx, () => this.conn.keys(regx)); }
+    exists(key) { return this.conn.exists(key); }
+    keys(regx = '*') { return this.conn.keys(regx); }
 
     get(key) { return this.conn.get(key); }
     clean() { return this.conn.clean(); }
