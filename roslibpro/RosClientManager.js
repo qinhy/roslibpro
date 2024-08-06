@@ -70,6 +70,114 @@ class RosClientManager extends SingletonKeyValueStorage{
     }
 }
 
+
+class RosBridgeSubManagerModel {
+    constructor(rosip='localhost:9090'){
+        //topic_name : [sub_listener ... ]
+        this.rosip = rosip;
+        this.root_srv_topic_name='/rosapi/topics';
+        this.root_srv_topic_type='rosapi/Topics';
+        this.sub_listeners = {}
+    }
+    get_root_srv(rate=10){
+        return new RosService(this.rosip,this.root_srv_topic_name,this.root_srv_topic_type,rate)
+    }
+    get_topic_names(){
+        return Object.entries(this.sub_listeners).map(
+            e=>{
+                topic_name=e[0];
+                listener_fun=e[1];
+                return topic_name;
+            }
+        )
+
+    }
+
+}
+class RosBridgeSubManagerController {
+    constructor(model=new RosBridgeSubManagerModel()){
+        this.model = model
+        //topic_name : client
+        this._sub_clients={}
+        this._root_srv=this.model.get_root_srv();
+    }
+    get_root_srv(){
+        if(!this._root_srv.isConnectDone()){
+            return new Promise((resolve, reject) => {
+                    this._root_srv.connectROS(
+                        {
+                            onError: (e) => {reject(e)},
+                            onConnection: () => resolve(this._root_srv),
+                            onClose: () => {}
+                        },false)
+            });
+        }
+        else{            
+            return new Promise((resolve, reject) => {resolve(this._root_srv)});
+        }
+    }
+    get_topics(){        
+        return new Promise((resolve, reject) => {
+            this.get_root_srv().then(root_srv => {
+                root_srv.callService().then((result) => {
+                    resolve(result);
+                }).catch((err) => {                
+                    reject(err);console.log(err);
+                });
+            });
+        });
+    }
+    get_topic_type(topic_name){
+        return new Promise((resolve, reject) => {
+            this.get_topics().then(result=>{
+                if(result.topics && result.topics.includes(topic_name)){
+                    const topic_type = result.types[result.topics.indexOf(topic_name)];
+                    resolve(topic_type);
+                }
+                else{
+                    throw Error(`not such topic of ${topic_name}`)
+                }
+            }).catch(e=>reject(e))
+        });
+    }
+    add_sub_listener(topic_name, listener_fun){
+        if(!this.model.sub_listeners[topic_name]){
+            this.model.sub_listeners[topic_name]=[];
+        }
+        this.model.sub_listeners[topic_name].push(listener_fun);
+
+        if(!this._sub_clients[topic_name]){
+            this.get_topic_type(topic_name).then(topic_type=>{                
+                this._sub_clients[topic_name]=new RosSubscriber(
+                    this.model.rosip,topic_type,10
+                );
+                this._sub_clients[topic_name].connectROS(
+                    {   onError: (e) => {//delete this sub
+                        },
+                        onConnection:() => {
+                            this._sub_clients[topic_name].subscribe = (msg)=>{
+                                this.model.sub_listeners[topic_name].forEach(
+                                    f => f(msg)
+                                )
+                            }
+                        },
+                        onClose: () => {}
+                    },false)
+            });
+        }
+
+        
+    }
+
+}
+class RosBridgeManagerState {
+    _states = {
+        WaitConnection:'WaitConnection',
+    }
+    _transitions = {
+        
+    }
+}
 class RosBridgeManager extends RosClientManager{
     constructor(rosip){
         if(!rosip){
