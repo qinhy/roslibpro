@@ -1,81 +1,119 @@
-const RosBaseStateList = ['NULL','Connecting','ConnectDone','Closing','Closed','Failure',]
-const RosBaseStates = {
-    NULL:'NULL',
-    Connecting:'Connecting',
-    ConnectDone:'ConnectDone',
-    Closing:'Closing',
-    Closed:'Closed',
-    Failure:'Failure',
-}
-const RosBaseTransitions = {
-    NULL: [RosBaseStates.Connecting,RosBaseStates.Failure],
-    Connecting: [RosBaseStates.ConnectDone,RosBaseStates.Failure],
-    ConnectDone: [RosBaseStates.Closing,],
-    Closing: [RosBaseStates.Closed,RosBaseStates.Failure],
-    Closed: [RosBaseStates.NULL],
-    Failure: [RosBaseStates.NULL],
-}
 
-// model and controller
-class RosBase { 
-    constructor(rosip, topic_name, topic_type, rate = 10, is_service = false,
-                onError=(error) => { },
-                onConnection=() => { },
-                onClose=() => { }
-    ) {
-        this.rosip = rosip;
-        this.topic_name = topic_name;
-        this.topic_type = topic_type;
-        this.rate = rate;
-        this.self_closed = false;
-        this.connected_cnt = 0;
-        this.is_service = is_service;
-        this.state = null;
-        this.onError=onError;
-        this.onConnection=onConnection;
-        this.onClose=onClose;
-        this.getROS = ()=>null;
-        this.topic = ()=>null;
-        this.setState(StateNULL);
+class RosBaseState {
+    static States = {
+        NULL: 'NULL',
+        ConnectDone: 'ConnectDone',
+        Connecting: 'Connecting',
+        Closing: 'Closing',
+        Closed: 'Closed',
+        Failure: 'Failure'
+    };
+
+    static transitions = {
+        [RosBaseState.States.NULL]: [RosBaseState.States.Connecting, RosBaseState.States.Failure],
+        [RosBaseState.States.Connecting]: [RosBaseState.States.ConnectDone, RosBaseState.States.Failure],
+        [RosBaseState.States.ConnectDone]: [RosBaseState.States.Closing, RosBaseState.States.Failure],
+        [RosBaseState.States.Closing]: [RosBaseState.States.Closed, RosBaseState.States.Failure],
+        [RosBaseState.States.Closed]: [RosBaseState.States.NULL],
+        [RosBaseState.States.Failure]: [RosBaseState.States.NULL]
+    };
+
+    constructor(controller) {
+        this.controller = controller;
+        this.state = RosBaseState.States.NULL;
+    }
+
+    toFailure() {
+        this.state = RosBaseState.States.Failure;
+    }
+
+    handleErrors(func_name,func) {
+        return (...args) => {
+            const validTransitions = RosBaseState.transitions[this.state];
+            const targetTransition = func_name.replace('to', '');
+            if (!validTransitions.includes(targetTransition)) {
+                throw new Error(`Invalid transition from [${this.state}] -> [${targetTransition}]`);
+            }
+            try {
+                return func.apply(this, args);
+            } catch (e) {
+                console.error(`[${this.constructor.name}]: ${e}`);
+                this.toFailure();
+            }
+        };
+    }
+
+    toNULL = this.handleErrors('toNULL',function () {
+        this.controller.getROS = () => null;
+        this.state = RosBaseState.States.NULL;
+    });
+
+    toConnecting = this.handleErrors('toConnecting',function () {
+        this.state = RosBaseState.States.Connecting;
+
+        return new Promise((resolve, reject) => {
+                        const ros = new ROSLIB.Ros({
+                url: `ws://${this.controller.rosip}`
+            });
+            this.controller.getROS = () => ros;
+
+            this.controller.getROS().on("error", error => {
+                this.controller.getROS = () => null;
+                if (this.controller.call_from_outter) this.controller.connected_cnt++;
+                this.toFailure();
+                reject(error);
+            });
+
+            this.controller.getROS().on("connection", () => {
+                this.self_closed = false;
+                if (this.controller.call_from_outter) this.controller.connected_cnt++;
+                this.toConnectDone();
+                resolve(this.controller);
+            });
+
+            this.controller.getROS().on("close", () => {
+                // auto close if on error
+                if(this.state==RosBaseState.States.ConnectDone){                    
+                    this.toClosing();
+                    this.toClosed();             
+                }
+                resolve(this.controller);
+            });
+        });
         
-    }
-    getTransitions(){
-        return RosBaseTransitions;
-    }
-    currentState(){
-        return this.state.constructor.name;
-    }
-    setState(state_class){
-        this.state = new state_class(this);
-    }
-    close() {        
-        if(this.topic() && this.topic().unadvertise)this.topic().unadvertise();        
-        if (this.getROS() && this.getROS().socket && this.getROS().socket.readyState !== WebSocket.CLOSED) {
-            this.getROS().close();
-        }
-    }
+    });
 
-    to_NULL(){          this.state.to_NULL();}
-    to_ConnectDone(){   this.state.to_ConnectDone();}
-    to_Connecting(){    this.state.to_Connecting();}
-    to_Closing(){       this.state.to_Closing();}
-    to_Closed(){        this.state.to_Closed();}
-    to_Failure(){       this.state.to_Failure();}
+    toConnectDone = this.handleErrors('toConnectDone',function () {
+        if(this.controller.isConnectDone()){
+            this.state = RosBaseState.States.ConnectDone;
+        }
+    });
+
+    toClosing = this.handleErrors('toClosing',function () {
+        this.state = RosBaseState.States.Closing;
+        this.controller.close();
+        this.toClosed();
+    });
+
+    toClosed = this.handleErrors('toClosed',function () {
+        this.state = RosBaseState.States.Closed;
+    });
 
     findPath(transitions, startState, endState) {
-        let queue = [[startState]];
-        let visited = new Set();
+        const queue = [[startState]];
+        const visited = new Set();
+
         while (queue.length > 0) {
-            let path = queue.shift();
-            let state = path[path.length - 1];
+            const path = queue.shift();
+            const state = path[path.length - 1];
             if (state === endState) {
                 return path;
             }
             if (!visited.has(state)) {
                 visited.add(state);
-                let nextStates = transitions[state] || [];
-                for (let nextState of nextStates) {
-                    let newPath = path.slice();
+                const nextStates = transitions[state] || [];
+                for (const nextState of nextStates) {
+                    const newPath = path.slice();
                     newPath.push(nextState);
                     queue.push(newPath);
                 }
@@ -85,126 +123,36 @@ class RosBase {
     }
 
     resumeState(targetState, maxAttempts = 100) {
-        console.log(`Set target state: ${targetState} (current is ${this.currentState()})`);
-        
+        console.log(`Set target state: ${targetState} (current is ${this.state})`);
+
         const nextAction = (task, targetState) => {
-            let path = task.findPath(task.getTransitions(), task.currentState(), targetState);
+            const path = this.findPath(RosBaseState.transitions, task.state, targetState);
             if (path.length <= 1) return null;
             return path[1];
         };
 
-        while (this.currentState() !== targetState) {
-            let cls = nextAction(this, targetState);
+        while (this.state !== targetState) {
+            const cls = nextAction(this, targetState);
             if (cls === null) throw new Error('No next action! Unreachable!');
-            if (maxAttempts < 0) throw new Error('Over max_attempts!');
-            
-            console.log(`Current: ${this.currentState()}, try to_${cls}`);
-            this[`to_${cls}`]();
+            if (maxAttempts < 0) throw new Error('Over max attempts!');
+
+            console.log(`Current: ${this.state}, try to_${cls}`);
+            var res = this[`to${cls}`]();
             maxAttempts -= 1;
+            if(res?.constructor?.name=='Promise')break;
         }
-        console.log(`Success to target state: ${this.currentState()}`);
-    }
+        if(res?.constructor?.name=='Promise')res.then(controller=>{
+            this.resumeState(targetState,maxAttempts);
+        }).catch(
+            e =>{
+                console.log(e);
+                this.resumeState(targetState,maxAttempts);
+            }
+        )
 
-}
-class StateBase{
-    constructor(controller) {
-        this.controller = controller;
-    }
-    _NULL() {
-        this.controller.close();
-        this.controller.getROS = ()=>null;
-        this.controller.topic = ()=>null;
-        this.controller.setState(StateNULL);
-    }
-    _Failure() {this.controller.setState(StateFailure);}
-
-    _defaultError(to) {
-        throw new Error(`Invalid transition from [${this.constructor.name}] -> [${to}]`);
-    }
-    to_NULL(){          this._defaultError("NULL");}
-    to_ConnectDone(){   this._defaultError("ConnectDone");}
-    to_Connecting(){    this._defaultError("Connecting");}
-    to_Closing(){       this._defaultError("Closing");}
-    to_Closed(){        this._defaultError("Closed");}
-    to_Failure(){       this._defaultError("Failure");}
-}
-class StateNULL extends StateBase{
-    _transitions = [RosBaseStates.Connecting,RosBaseStates.Failure]
-    to_Connecting(){     
-        try {
-            const ros = new ROSLIB.Ros({url: `ws://${this.controller.rosip}`});
-            this.controller.getROS = ()=>ros;
-            this.controller.getROS().on("error", error => {
-                this.controller.getROS = ()=>null;
-                this.controller.onError(error);
-                this.controller.to_Failure();
-            });
-
-            this.controller.getROS().on("connection", () => {
-                this.controller.onConnection();
-                this.controller.to_ConnectDone();
-            });
-
-            this.controller.getROS().on("close", () => {                
-                this.controller.getROS = ()=>null;
-                this.controller.onClose();
-            });
-
-            const topic = this.controller.is_service
-                ? new ROSLIB.Service({
-                    ros: this.controller.getROS(),
-                    name: this.controller.topic_name,
-                    serviceType: this.controller.topic_type
-                })
-                : new ROSLIB.Topic({
-                    ros: this.controller.getROS(),
-                    name: this.controller.topic_name,
-                    messageType: this.controller.topic_type,
-                    rate: this.controller.rate
-                });
-            this.controller.topic = ()=>topic;
-            this.setState(StateConnecting);
-        } catch (e) {
-            this._Failure();
-        }
-    }
-    to_Failure(){this._Failure()}
-}
-class StateConnecting extends StateBase{
-    _transitions = [RosBaseStates.ConnectDone,RosBaseStates.Failure]
-    to_Failure(){this._Failure()}
-    to_ConnectDone(){
-        if(this.getROS() && this.getROS().socket.readyState === WebSocket.OPEN){
-            this.controller.setState(StateConnectDone);
-        }
+        if(this.state == targetState)console.log(`Success to target state: ${this.state}`);
     }
 }
-class StateConnectDone extends StateBase{
-    _transitions = [RosBaseStates.Closing,]
-    to_Closing(){
-        this.controller.setState(StateClosing);
-        this.controller.close();
-    }
-
-}
-class StateClosing extends StateBase{
-    _transitions = [RosBaseStates.Closed,RosBaseStates.Failure]
-    to_Failure(){this._Failure()}
-    to_Closed(){
-        if(this.getROS() || this.getROS().socket.readyState === WebSocket.CLOSED){
-            this.controller.setState(StateClosed);
-        }
-    }
-}
-class StateClosed extends StateBase{
-    _transitions = [RosBaseStates.NULL]
-    to_NULL(){this._NULL();}
-}
-class StateFailure extends StateBase{
-    _transitions = [RosBaseStates.NULL]
-    to_NULL(){this._NULL();}
-}
-
 
 export class RosBase {
     constructor(rosip, topic_name, topic_type, rate = 10, is_service = false) {
@@ -215,9 +163,21 @@ export class RosBase {
         this.self_closed = false;
         this.connected_cnt = 0;
         this.is_service = is_service;
-        this.getROS = ()=>null;
-        this.topic = ()=>null;
+        const state = new RosBaseState(this);
+        this.getROS = () => null;
+        this.topic = () => null;
+        this.state = () => state;
     }
+    currentState(){return this.state().state}
+    resumeState(targetState=RosBaseState.States.ConnectDone, maxAttempts = 100){
+        this.state().resumeState(targetState,maxAttempts);
+    }
+    toFailure(){this.state().toFailure()}
+    toNULL(){this.state().toNULL()}
+    toClosed(){this.state().toClosed()}
+    toConnecting(){this.state().toConnecting()}
+    toConnectDone(){this.state().toConnectDone()}
+    toClosing(){this.state().toClosing()}
 
     connectROS(callback = {
         onError: (error) => { },
@@ -235,11 +195,11 @@ export class RosBase {
             const ros = new ROSLIB.Ros({
                 url: `ws://${this.rosip}`
             });
-            this.getROS = ()=>ros;
+            this.getROS = () => ros;
 
             this.getROS().on("error", error => {
-                
-        this.getROS = ()=>null;
+
+                this.getROS = () => null;
                 if (call_from_outter) this.connected_cnt++;
                 callback.onError(error);
             });
@@ -251,8 +211,8 @@ export class RosBase {
             });
 
             this.getROS().on("close", () => {
-                
-        this.getROS = ()=>null;
+
+                this.getROS = () => null;
                 callback.onClose();
             });
 
@@ -268,7 +228,7 @@ export class RosBase {
                     messageType: this.topic_type,
                     rate: this.rate
                 });
-            this.topic = ()=>topic;
+            this.topic = () => topic;
         } catch (e) {
             return false;
         }
@@ -297,14 +257,14 @@ export class RosBase {
 
     close(is_self_closed = true) {
         this.self_closed = is_self_closed;
-        
-        if(this.topic() && this.topic().unadvertise)this.topic().unadvertise();
-        this.topic = ()=>null;
-        
+
+        if (this.topic() && this.topic().unadvertise) this.topic().unadvertise();
+        this.topic = () => null;
+
         if (this.getROS() && this.getROS().socket && this.getROS().socket.readyState !== WebSocket.CLOSED) {
             this.getROS().close();
         }
-        
-        this.getROS = ()=>null;
+
+        this.getROS = () => null;
     }
 }

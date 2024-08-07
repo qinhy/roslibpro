@@ -9,7 +9,15 @@
 </head>
 
 <body>    
-    <script type="module">
+      
+    <script type="module">        
+        import {RosBase} from "./roslibpro/RosBase.js";        
+        const rosip = '192.168.1.158:9090';
+        const roslm = new RosBase(rosip, '/rosapi/topics', 'rosapi/Topics', 10, true);
+        console.log(roslm);
+
+    </script>
+    <!-- <script type="module">
         import {RosClientManager,RosBridgeManager} from "./roslibpro/RosClientManager.js";
 
         const rosIP = '192.168.1.158:9090';
@@ -127,7 +135,7 @@
         rosbm.onConnection = ()=>{            
             test_brm_listen();
         }
-    </script>
+    </script> -->
 </body>
 
 </html>
