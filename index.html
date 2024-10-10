@@ -9,14 +9,61 @@
 </head>
 
 <body>    
-      
     <script type="module">        
+        import { sensor_msgs, rdt_interfaces, visualization_msgs, nav_msgs, geometry_msgs, std_msgs , RosAbstractModel, RosRoot} from "./roslibpro/RosMessage.js";        
+        
+        class VisModel extends RosAbstractModel{
+            constructor(empty=false) {
+                super(empty);
+                if(empty)return;
+                this.___pubsub = 'pub';
+
+                // std_msgs/msg/Int32
+                this.markers = new visualization_msgs.msg.Marker();
+
+            }
+        }
+
+        const v = new VisModel();
+        console.log(v);
+        console.log(v._switchModel());
+
+        class AppModel extends RosAbstractModel{
+            constructor(empty=false) {
+                super(empty);
+                if(empty)return;
+                this.___pubsub = 'pub';
+
+                // Publishers
+                this.app_state = new std_msgs.msg.Int32();
+
+                // Subscribers
+                this._operation_cmd = new std_msgs.msg.Float32MultiArray();
+                this._vis = new VisModel()._toSubModel();
+
+            }
+        }
+
+        const a = new AppModel();
+        console.log(a);
+        console.log(a._switchModel());
+
+        a._randomSetMembers();
+        console.log(a.app_state,a.app_state.getTopicType());
+
+        const root = new RosRoot();
+        root.a = new AppModel();
+        console.log(root.all_list());
+
+    </script>
+      
+    <!-- <script type="module">        
         import {RosBase} from "./roslibpro/RosBase.js";        
         const rosip = '192.168.1.158:9090';
         const roslm = new RosBase(rosip, '/rosapi/topics', 'rosapi/Topics', 10, true);
         console.log(roslm);
 
-    </script>
+    </script> -->
     <!-- <script type="module">
         import {RosClientManager,RosBridgeManager} from "./roslibpro/RosClientManager.js";
 

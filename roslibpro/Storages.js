@@ -374,7 +374,7 @@ class SingletonIndexedDBStorageController extends SingletonStorageController {
     }
 }
 
-class SingletonKeyValueStorage extends SingletonStorageController {
+export class SingletonKeyValueStorage extends SingletonStorageController {
 
     constructor() {
         super();
