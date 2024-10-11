@@ -586,7 +586,6 @@ class RosRoot extends RosAbstractModel {
 //     constructor() {
 //         super();
 //         // Publishers
-//         // BH -> UI, 1000ms, std_msgs/msg/Int32
 //         this.app_state = new visualization_msgs.msg.Marker();
 
 //     }
