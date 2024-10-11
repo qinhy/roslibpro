@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.js"></script>
+    <title>Test</title>
+</head>
+
+<body>    
+    <script type="module">        
+        import { sensor_msgs, rdt_interfaces, visualization_msgs, nav_msgs, geometry_msgs, std_msgs , RosAbstractModel, RosRoot} from "./roslibpro/RosMessage.js";        
+        
+        class VisModel extends RosAbstractModel{
+            constructor(empty=false) {
+                super(empty);
+                if(empty)return;
+                this.___pubsub = 'pub';
+
+                // std_msgs/msg/Int32
+                this.markers = new visualization_msgs.msg.Marker();
+
+            }
+        }
+
+        const v = new VisModel();
+        console.log(v);
+        console.log(v._switchModel());
+
+        class AppModel extends RosAbstractModel{
+            constructor(empty=false) {
+                super(empty);
+                if(empty)return;
+                this.___pubsub = 'pub';
+
+                // Publishers
+                this.app_state = new std_msgs.msg.Int32();
+
+                // Subscribers
+                this._operation_cmd = new std_msgs.msg.Float32MultiArray();
+                this._vis = new VisModel()._toSubModel();
+
+            }
+        }
+
+        const a = new AppModel();
+        console.log(a);
+        console.log(a._switchModel());
+
+        a._randomSetMembers();
+        console.log(a.app_state,a.app_state.getTopicType());
+
+        const root = new RosRoot();
+        root.a = new AppModel();
+        root.all_list();
+        console.log(root.all_list());
+
+    </script>
+      
+    <!-- <script type="module">        
+        import {RosBase} from "./roslibpro/RosBase.js";        
+        const rosip = '192.168.1.158:9090';
+        const roslm = new RosBase(rosip, '/rosapi/topics', 'rosapi/Topics', 10, true);
+        console.log(roslm);
+
+    </script> -->
+    <!-- <script type="module">
+        import {RosClientManager,RosBridgeManager} from "./roslibpro/RosClientManager.js";
+
+        const rosIP = '192.168.1.158:9090';
+        const roslm = new RosClientManager();
+        
+        const test_srv = ()=>
+        {
+            const uuid = roslm.add_new_service(rosIP,'/rosapi/topics', 'rosapi/Topics');
+            roslm.get(uuid).connectROS( {
+                onError: (error) => { },
+                onConnection: () => {
+                    roslm.get(uuid).callService().then((result) => {
+                        if (result) {
+                            console.log(result);
+                        }
+                        }).catch((err) => {
+                            console.log(err);
+                        });
+                },
+                onClose: () => { }
+            });
+        }
+        const test_srv2 = ()=>
+        {
+            //'/rosapi/topics', 'rosapi/Topics'
+            //'/rosapi/services', 'rosapi/Services'
+            const uuid = roslm.add_new_service(rosIP,'/rosapi/services', 'rosapi/ServiceType');
+            roslm.get(uuid).connectROS( {
+                onError: (error) => { },
+                onConnection: () => {
+                    roslm.get(uuid).callService(
+                        // {'service': '/rosapi/topics'}
+                    ).then((result) => {
+                        if (result) {
+                            console.log(result);
+                        }
+                        }).catch((err) => {
+                            console.log(err);
+                        });
+                },
+                onClose: () => { }
+            });
+        }
+        const test_reload = ()=>
+        {
+            const ss = roslm.dumps();
+            console.log(roslm.dumps())
+            roslm.clean();
+            roslm.loads(ss);
+            roslm.connect();
+            
+            roslm.srvs()[0].callService().then((result) => {
+                    if (result) {
+                        console.log(result);
+                    }
+                    }).catch((err) => {
+                        console.log(err);
+                    });
+        }
+
+        const test_sub = ()=>
+        {            
+            roslm.clean();
+            const uuid = roslm.add_new_sub(rosIP, '/client_count', 'std_msgs/msg/Int32');
+            const sub = roslm.get(uuid);
+            sub.connectROS();
+            sub.subscribe = (msg)=>{
+                console.log(msg);
+            }
+        }
+
+        
+        const rosbm = new RosBridgeManager(rosIP);
+        const test_brm = ()=>
+        {            
+            rosbm.get_topics().then(ts=>{
+                console.log(rosbm.get_rosip())
+                console.log(ts);
+            })     
+            rosbm.get_services().then(ts=>{
+                console.log(ts);
+            })
+            rosbm.add_new_sub('/client_count').then(uuid=>{
+                rosbm.get(uuid).subscribe = (msg)=>{
+                    console.log(msg);
+                }
+                console.log(uuid);
+            })
+        }
+        
+        const test_brm_listen = ()=>
+        {            
+            rosbm.add_sub_listener('/client_count',(msg)=>{
+                console.log('!!!!',msg);
+            }).then(f_uuid=>
+                {
+                    console.log(rosbm);
+                    console.log(f_uuid);
+                    
+                    rosbm.add_sub_listener('/client_count',(msg)=>{
+                        console.log('####',msg);
+                    }).then(s_uuid=>
+                        {
+                            console.log(s_uuid);
+                            // can try delete first one
+                        }
+                    );
+                }
+            );
+        }
+        // test_srv2();
+        // test_reload();
+        // test_sub();
+        // test_brm();
+        rosbm.onConnection = ()=>{            
+            test_brm_listen();
+        }
+    </script> -->
+</body>
+
+</html>

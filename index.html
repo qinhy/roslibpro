@@ -1,16 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8" />
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.js"></script>
-    <title>Test</title>
+    <title>Interactive ROS Console</title>
 </head>
+<body>
+    <div id="app">
+        <h1>ROS Interactive Console</h1>
+        <div>
+            <textarea v-model="command" placeholder="Enter ROS command"></textarea>
+            <button @click="executeCommand">Execute</button>
+            <button @click="clearConsole">Clean</button>
+        </div>
+        <div>
+            <h2>Console Output</h2>
+            <pre v-for="(entry, index) in outputLog.reverse()" :key="index">{{ entry }}
+                <hr>
+            </pre>
+        </div>
+    </div>
 
-<body>    
-    <script type="module">        
-        import { sensor_msgs, rdt_interfaces, visualization_msgs, nav_msgs, geometry_msgs, std_msgs , RosAbstractModel, RosRoot} from "./roslibpro/RosMessage.js";        
+    <script type="module">
+        import { sensor_msgs, rdt_interfaces, visualization_msgs, nav_msgs, geometry_msgs, std_msgs , RosAbstractModel, RosRoot } from "./roslibpro/RosMessage.js";
         
         class VisModel extends RosAbstractModel{
             constructor(empty=false) {
@@ -23,10 +36,6 @@
 
             }
         }
-
-        const v = new VisModel();
-        console.log(v);
-        console.log(v._switchModel());
 
         class AppModel extends RosAbstractModel{
             constructor(empty=false) {
@@ -44,145 +53,59 @@
             }
         }
 
-        const a = new AppModel();
-        console.log(a);
-        console.log(a._switchModel());
-
-        a._randomSetMembers();
-        console.log(a.app_state,a.app_state.getTopicType());
-
-        const root = new RosRoot();
-        root.a = new AppModel();
-        console.log(root.all_list());
-
-    </script>
-      
-    <!-- <script type="module">        
-        import {RosBase} from "./roslibpro/RosBase.js";        
-        const rosip = '192.168.1.158:9090';
-        const roslm = new RosBase(rosip, '/rosapi/topics', 'rosapi/Topics', 10, true);
-        console.log(roslm);
-
-    </script> -->
-    <!-- <script type="module">
-        import {RosClientManager,RosBridgeManager} from "./roslibpro/RosClientManager.js";
-
-        const rosIP = '192.168.1.158:9090';
-        const roslm = new RosClientManager();
         
-        const test_srv = ()=>
-        {
-            const uuid = roslm.add_new_service(rosIP,'/rosapi/topics', 'rosapi/Topics');
-            roslm.get(uuid).connectROS( {
-                onError: (error) => { },
-                onConnection: () => {
-                    roslm.get(uuid).callService().then((result) => {
-                        if (result) {
-                            console.log(result);
-                        }
-                        }).catch((err) => {
-                            console.log(err);
-                        });
+        // const v = new VisModel();
+        // console.log(v);
+        // console.log(v._switchModel());
+        // const a = new AppModel();
+        // console.log(a);
+        // console.log(a._switchModel());
+
+        // a._randomSetMembers();
+        // console.log(a.app_state,a.app_state.getTopicType());
+
+        // const root = new RosRoot();
+        // root.a = new AppModel();
+        // console.log(root.all_list());
+
+
+        const app = Vue.createApp({
+            data() {
+                return {
+                    command: '',
+                    outputLog: [], // Array to keep track of all outputs
+                    visModel: null,
+                    appModel: null,
+                    root: null,
+                };
+            },
+            mounted() {
+                this.initializeModels();
+            },
+            methods: {
+                initializeModels() {
+                    this.visModel = new VisModel();
+                    this.appModel = new AppModel();
+                    this.root = new RosRoot();
+                    this.root.a = this.appModel;
                 },
-                onClose: () => { }
-            });
-        }
-        const test_srv2 = ()=>
-        {
-            //'/rosapi/topics', 'rosapi/Topics'
-            //'/rosapi/services', 'rosapi/Services'
-            const uuid = roslm.add_new_service(rosIP,'/rosapi/services', 'rosapi/ServiceType');
-            roslm.get(uuid).connectROS( {
-                onError: (error) => { },
-                onConnection: () => {
-                    roslm.get(uuid).callService(
-                        // {'service': '/rosapi/topics'}
-                    ).then((result) => {
-                        if (result) {
-                            console.log(result);
-                        }
-                        }).catch((err) => {
-                            console.log(err);
-                        });
-                },
-                onClose: () => { }
-            });
-        }
-        const test_reload = ()=>
-        {
-            const ss = roslm.dumps();
-            console.log(roslm.dumps())
-            roslm.clean();
-            roslm.loads(ss);
-            roslm.connect();
-            
-            roslm.srvs()[0].callService().then((result) => {
-                    if (result) {
-                        console.log(result);
+                executeCommand() {
+                    try {
+                        const result = eval(`${this.command}`);
+                        if(typeof result === 'string'){this.outputLog.push(result)}
+                        else{this.outputLog.push(JSON.stringify(result, null, 2));}
+                    } catch (error) {
+                        this.outputLog.push(`Error: ${error.message}`);
                     }
-                    }).catch((err) => {
-                        console.log(err);
-                    });
-        }
-
-        const test_sub = ()=>
-        {            
-            roslm.clean();
-            const uuid = roslm.add_new_sub(rosIP, '/client_count', 'std_msgs/msg/Int32');
-            const sub = roslm.get(uuid);
-            sub.connectROS();
-            sub.subscribe = (msg)=>{
-                console.log(msg);
+                    this.command = ''; // Clear input after execution
+                },
+                clearConsole() {
+                    this.outputLog = []; // Clear the output log
+                }
             }
-        }
+        });
 
-        
-        const rosbm = new RosBridgeManager(rosIP);
-        const test_brm = ()=>
-        {            
-            rosbm.get_topics().then(ts=>{
-                console.log(rosbm.get_rosip())
-                console.log(ts);
-            })     
-            rosbm.get_services().then(ts=>{
-                console.log(ts);
-            })
-            rosbm.add_new_sub('/client_count').then(uuid=>{
-                rosbm.get(uuid).subscribe = (msg)=>{
-                    console.log(msg);
-                }
-                console.log(uuid);
-            })
-        }
-        
-        const test_brm_listen = ()=>
-        {            
-            rosbm.add_sub_listener('/client_count',(msg)=>{
-                console.log('!!!!',msg);
-            }).then(f_uuid=>
-                {
-                    console.log(rosbm);
-                    console.log(f_uuid);
-                    
-                    rosbm.add_sub_listener('/client_count',(msg)=>{
-                        console.log('####',msg);
-                    }).then(s_uuid=>
-                        {
-                            console.log(s_uuid);
-                            // can try delete first one
-                        }
-                    );
-                }
-            );
-        }
-        // test_srv2();
-        // test_reload();
-        // test_sub();
-        // test_brm();
-        rosbm.onConnection = ()=>{            
-            test_brm_listen();
-        }
-    </script> -->
+        app.mount('#app');
+    </script>
 </body>
-
 </html>

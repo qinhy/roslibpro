@@ -4,7 +4,6 @@ import { RosService } from "./RosService.js";
 import { RosSubscriber } from "./RosSubscriber.js";
 import { SingletonKeyValueStorage } from "./Storages.js";
 
-
 class RosClientManager extends SingletonKeyValueStorage{
     _uuid2type(uuid){
         return uuid.split(':')[1];
@@ -113,7 +112,7 @@ class RosClientManager extends SingletonKeyValueStorage{
 }
 
 
-class RosAbstractModel{// extends RosClientManager{
+class RosAbstractModel{
     constructor(empty=false) {
         // super();
         this.___pubsub = 'pub';
@@ -121,15 +120,15 @@ class RosAbstractModel{// extends RosClientManager{
 
         // Publishers
         // BH -> UI, 1000ms, std_msgs/msg/Int32
-        // this.app_state = null//std_msgs.msg.Int32();s
+        // this.app_state = null//std_msgs.msg.Int32();
 
         // Subscribers
         // UI -> BH, XXms, std_msgs/msg/Float32MultiArray
         // this._operation_cmd = null//std_msgs.msg.Float32MultiArray();
     }
 
-    // service topic with "___"
-    // ___some_service(){}
+    // service topic with "_srv_" , action topic with "_act_" ,
+    // _srv_someservice(){}
 
     
     _is_private(param_name) {
@@ -174,7 +173,7 @@ class RosAbstractModel{// extends RosClientManager{
             for (const [key, value] of Object.entries(param)) {
                 if (this._is_private(key)) continue;
                 const isFunction = this._is_function(value);
-                if (isFunction && key.startsWith('_')) continue;
+                if (isFunction && (!key.startsWith('_srv_') || !key.startsWith('_act_') )) continue;
                 const newPath = `${path}/${key}`;
                 paths.push(...this._dfs(value, newPath, isFunction, onlyFunc));
             }
@@ -288,8 +287,8 @@ class RosAbstractModel{// extends RosClientManager{
 
 /// ros messages 
 class RosMessageBase {
-    constructor() {
-        this.__empty = true;
+    constructor(empty = true) {
+        this.__empty = empty;
     }
     
     empty() { return this.__empty; }
