@@ -5,116 +5,6 @@ import { RosSubscriber } from "./RosSubscriber.js";
 import { SingletonKeyValueStorage } from "./Storages.js";
 import { EventDispatcherController } from "./EventDispatcher.js";
 
-class RosClientManager extends SingletonKeyValueStorage {
-    _uuid2type(uuid) {
-        return uuid.split(':')[1];
-    }
-    _type2class(key) {
-        return {
-            'pub': RosPublisher,
-            'sub': RosSubscriber,
-            'srv': RosService
-        }[key];
-    }
-    _set_instance(key, rosip, topic_name, topic_type, rate = 10, uuid = null) {
-        if (!uuid) uuid = `ros:${key}:${this.randuuid()}`;
-        this.set(uuid, new (this._type2class(key))(rosip, topic_name, topic_type, rate))
-        return uuid;
-    }
-    add_new_pub(rosip, topic_name, topic_type, rate = 10) {
-        return this._set_instance('pub', rosip, topic_name, topic_type, rate);
-    }
-    add_new_sub(rosip, topic_name, topic_type, rate = 10) {
-        return this._set_instance('sub', rosip, topic_name, topic_type, rate);
-    }
-    add_new_service(rosip, topic_name, topic_type, rate = 10) {
-        return this._set_instance('srv', rosip, topic_name, topic_type, rate);
-    }
-    all_keys() {
-        return this.keys('^ros:*');
-    }
-    all_instances() {
-        return this.all_keys().map(k => this.get(k));
-    }
-    delete(key) {
-        this.get(key).close();
-        super.delete(key);
-    }
-    connect() {
-        this.all_instances().forEach(c => { if (c.connectROS) c.connectROS() });
-    }
-    close() {
-        this.all_instances().forEach(c => { if (c.close) c.close() });
-    }
-    clean() {
-        this.close();
-        super.clean();
-    }
-    // change_all_ip(rosip){
-    //     const data = this.dumps();
-    //     this.clean();
-    //     this.loads(data,rosip);
-    //     this.connect();
-    //     return this;
-    // }
-
-    pub_keys() { return this.keys('^ros:pub:*'); }
-    sub_keys() { return this.keys('^ros:sub:*'); }
-    srv_keys() { return this.keys('^ros:srv:*'); }
-
-    pubs() { return this.pub_keys().map(k => this.get(k)); }
-    subs() { return this.sub_keys().map(k => this.get(k)); }
-    srvs() { return this.srv_keys().map(k => this.get(k)); }
-
-    // loads(jsonStr,rosip=null){
-    //     super.loads(jsonStr);
-    //     this.all_keys().map(uuid => {return {uuid, ...this.get(uuid)}})
-    //         .forEach(m => this._set_instance(this._uuid2type(m.uuid),rosip??m.rosip,
-    //                                     m.topic_name, m.topic_type, m.rate, m.uuid));
-    // }
-
-    _listener_uuid_2_parent_uuid(uuid) {
-        return uuid.replace('_listeners', '').replace(':' + uuid.split(':').pop(), '');
-    }
-    _listener_uuid(uuid) {
-        const type = this._uuid2type(uuid)
-        return uuid.replace(type, type + '_listeners')
-    }
-    _set_new_sub_listener(sub_uuid, listener_fun) {
-        const listener_uuid = `${this._listener_uuid(sub_uuid)}:${this.randuuid()}`;
-        this.set(listener_uuid, listener_fun);
-        return listener_uuid;
-    }
-    _first_sub_uuid(topic_name) {
-        const uuid = this.sub_keys().filter(s => this.get(s).topic_name == topic_name)[0];
-        return uuid;
-    }
-    get_sub_listener_keys(topic_name) {
-        var k = this._first_sub_uuid(topic_name);
-        return k ? this.keys(`${this._listener_uuid(k)}:*`) : [];
-    }
-    add_sub_listener(rosip, topic_name, topic_type, listener_fun) {
-        if (!this._first_sub_uuid(topic_name)) {
-            const uuid = this._add_new_sub(rosip, topic_name, topic_type);
-            this.get(uuid).connectROS({
-                onError: (e) => { console.log(e) },
-                onConnection: () => { this._set_new_sub_listener(uuid, listener_fun) },
-                onClose: () => { }
-            });
-        }
-    }
-    delete_sub_listener(uuid) {
-        const sub_uuid = this._listener_uuid_2_parent_uuid(uuid);
-        const topic_name = this.get(sub_uuid).topic_name;
-        this.delete(uuid);
-        if (this.get_sub_listener_keys(topic_name).length == 0) {
-            this.get(sub_uuid).close();
-            this.delete(sub_uuid);
-        }
-    }
-}
-
-
 // # ROS2 components : pub/sub, service
 
 // # class == Namespace Path
@@ -147,9 +37,9 @@ const RosPathDelUnderscore = (path)=>{
 // /app/app_state -> return root_obj.app.app_state
 const RosPathToObjParam = (path,root_obj)=>{
     let param = root_obj;
-    for (const i of path.split('/')) {
-        if (i.length === 0) continue;
-        param = param[i];
+    for (const param_name of path.split('/')) {
+        if (param_name.length === 0) continue;
+        param = param[param_name]?param[param_name]:param["_"+param_name];
     }
     return param;
 }
@@ -254,7 +144,7 @@ class RosAbstractModel {
     _pubs() {
         const menbers = {};
         for (const key in this) {
-            if (this._is_primitive(key) && !this._is_sub(key) && !this._is_private(key)) {
+            if (!this[key].hasOwnProperty('___pubsub_ros_model') && this._is_primitive(key) && !this._is_sub(key) && !this._is_private(key)) {
                 menbers[key] = this[key];
             }
         }
@@ -263,7 +153,7 @@ class RosAbstractModel {
     _subs() {
         const menbers = {};
         for (const key in this) {
-            if (this._is_primitive(key) && this._is_sub(key) && !this._is_private(key)) {
+            if (!this[key].hasOwnProperty('___pubsub_ros_model') && this._is_primitive(key) && this._is_sub(key) && !this._is_private(key)) {
                 menbers[key] = this[key];
             }
         }
@@ -309,11 +199,13 @@ class RosAbstractModel {
         const ispub = this._is_pub_model();
         for (const key in this) {
             if (!this._is_primitive(this[key])) {
-                if (this[key]._isPubModel()) {
-                    instance[`_${key}`] = this[key]._toSubModel();
+                if (this[key]._is_pub_model()) {
+                    // instance[`_${key}`] = this[key]._toSubModel();
+                    instance[key] = this[key]._toSubModel();
                 }
                 else {
-                    instance[key.slice(1)] = this[key]._toPubModel();
+                    // instance[key.slice(1)] = this[key]._toPubModel();
+                    instance[key] = this[key]._toPubModel();
                 }
             }
         }
@@ -451,6 +343,25 @@ class sensor_msgs__msg__JointState extends RosMessageBase {
     }
 }
 
+class sensor_msgs__msg__PointCloud2 extends RosMessageBase {
+    constructor() {
+        super();
+        this.header = {
+            stamp: new Date(),  // Timestamp
+            frame_id: ''        // Reference frame
+        };
+        this.height = 0;
+        this.width = 0;
+        this.fields = [];     // Array of field structures
+        this.is_bigendian = false;
+        this.point_step = 0;
+        this.row_step = 0;
+        this.data = [];       // Actual point data, typically an array of bytes
+        this.is_dense = false;
+    }
+}
+
+
 class std_msgs__msg__Int8MultiArray extends RosMessageBase {
     constructor() {
         super();
@@ -551,6 +462,42 @@ class std_msgs__msg__Int32 extends RosMessageBase {
         this.data = data;
     }
 }
+class moveit_msgs__msg__PlanningScene extends RosMessageBase {
+    constructor() {
+        super();
+        this.name = '';
+        this.robot_state = {
+            joint_state: {
+                name: [],
+                position: [],
+                velocity: [],
+                effort: []
+            },
+            multi_dof_joint_state: {
+                header: {
+                    stamp: new Date(),
+                    frame_id: ''
+                },
+                joint_names: [],
+                transforms: [], // Array of transformation data (position + orientation)
+                twist: [],
+                wrench: []
+            }
+        };
+        this.robot_model_name = '';
+        this.fixed_frame_transforms = [];
+        this.allowed_collision_matrix = {};
+        this.link_padding = [];
+        this.link_scale = [];
+        this.object_colors = [];
+        this.world = {
+            collision_objects: [],
+            octomap: {}
+        };
+        this.is_diff = false;
+    }
+}
+
 
 const sensor_msgs = { msg: {} };
 const rdt_interfaces = { msg: {} };
@@ -558,9 +505,11 @@ const visualization_msgs = { msg: {} };
 const nav_msgs = { msg: {} };
 const geometry_msgs = { msg: {} };
 const std_msgs = { msg: {} };
+const moveit_msgs = { msg: {} };
 
 nav_msgs.msg.Odometry = nav_msgs__msg__Odometry;
 sensor_msgs.msg.JointState = sensor_msgs__msg__JointState;
+sensor_msgs.msg.PointCloud2 = sensor_msgs__msg__PointCloud2;
 std_msgs.msg.Int8MultiArray = std_msgs__msg__Int8MultiArray;
 std_msgs.msg.Float32MultiArray = std_msgs__msg__Float32MultiArray;
 rdt_interfaces.msg.ApplicationState = rdt_interfaces__msg__ApplicationState;
@@ -571,6 +520,7 @@ geometry_msgs.msg.PoseStamped = geometry_msgs__msg__PoseStamped;
 std_msgs.msg.Bool = std_msgs__msg__Bool;
 std_msgs.msg.String = std_msgs__msg__String;
 std_msgs.msg.Int32 = std_msgs__msg__Int32;
+moveit_msgs.msg.PlanningScene = moveit_msgs__msg__PlanningScene;
 
 
 class RosRoot extends RosAbstractModel {
@@ -657,4 +607,4 @@ class RosRoot extends RosAbstractModel {
     }
 }
 
-export { sensor_msgs, rdt_interfaces, visualization_msgs, nav_msgs, geometry_msgs, std_msgs, RosAbstractModel, RosRoot }
+export { sensor_msgs, moveit_msgs, rdt_interfaces, visualization_msgs, nav_msgs, geometry_msgs, std_msgs, RosAbstractModel, RosRoot }
