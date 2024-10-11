@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.js"></script>
+    <title>Test</title>
+</head>
+
+<body>    
+    <script type="module">        
+        import { sensor_msgs, rdt_interfaces, visualization_msgs, nav_msgs, geometry_msgs, std_msgs , RosAbstractModel, RosRoot} from "./roslibpro/RosMessage.js";        
+        
+        class AppModel extends RosAbstractModel{
+            constructor(empty=false) {
+                super(empty);
+                if(empty)return;
+                this.___pubsub_ros_model = 'pub';
+
+                // Publishers
+                this.app_state = new std_msgs.msg.Int32();
+
+                // Subscribers
+                this._operation_cmd = new std_msgs.msg.String();
+
+            }
+        }
+
+        const root = new RosRoot();
+        root.app = new AppModel()._toSubModel();
+        root.connect('192.168.1.3:9090');
+        window.root = root;
+        // window.root.app._app_state.sub((msg)=>{
+        //     console.log(msg,msg.toRosBridgeFormat());
+        // });
+        window.root.sub_topic("/app/app_state",(msg)=>{
+            console.log(msg,msg.toRosBridgeFormat());
+        });
+
+    </script>
+</body>
+
+</html>

@@ -3,47 +3,50 @@ import { RosPublisher } from "./RosPublisher.js";
 import { RosService } from "./RosService.js";
 import { RosSubscriber } from "./RosSubscriber.js";
 import { SingletonKeyValueStorage } from "./Storages.js";
+import { EventDispatcherController } from "./EventDispatcher.js";
 
-class RosClientManager extends SingletonKeyValueStorage{
-    _uuid2type(uuid){
+class RosClientManager extends SingletonKeyValueStorage {
+    _uuid2type(uuid) {
         return uuid.split(':')[1];
     }
-    _type2class(key){
-        return{'pub':RosPublisher,
-               'sub':RosSubscriber,
-               'srv':RosService}[key];
+    _type2class(key) {
+        return {
+            'pub': RosPublisher,
+            'sub': RosSubscriber,
+            'srv': RosService
+        }[key];
     }
-    _set_instance(key, rosip, topic_name, topic_type, rate=10, uuid=null){
-        if(!uuid)uuid = `ros:${key}:${this.randuuid()}`;
-        this.set(uuid,new (this._type2class(key))(rosip, topic_name, topic_type, rate))
+    _set_instance(key, rosip, topic_name, topic_type, rate = 10, uuid = null) {
+        if (!uuid) uuid = `ros:${key}:${this.randuuid()}`;
+        this.set(uuid, new (this._type2class(key))(rosip, topic_name, topic_type, rate))
         return uuid;
     }
-    add_new_pub(rosip, topic_name, topic_type, rate=10){
+    add_new_pub(rosip, topic_name, topic_type, rate = 10) {
         return this._set_instance('pub', rosip, topic_name, topic_type, rate);
     }
-    add_new_sub(rosip, topic_name, topic_type, rate=10){
+    add_new_sub(rosip, topic_name, topic_type, rate = 10) {
         return this._set_instance('sub', rosip, topic_name, topic_type, rate);
     }
-    add_new_service(rosip, topic_name, topic_type, rate=10){
+    add_new_service(rosip, topic_name, topic_type, rate = 10) {
         return this._set_instance('srv', rosip, topic_name, topic_type, rate);
     }
-    all_keys(){        
+    all_keys() {
         return this.keys('^ros:*');
     }
-    all_instances(){        
-        return this.all_keys().map(k=>this.get(k));
+    all_instances() {
+        return this.all_keys().map(k => this.get(k));
     }
-    delete(key){
+    delete(key) {
         this.get(key).close();
         super.delete(key);
     }
-    connect(){
-        this.all_instances().forEach(c => {if(c.connectROS)c.connectROS()});
+    connect() {
+        this.all_instances().forEach(c => { if (c.connectROS) c.connectROS() });
     }
-    close(){
-        this.all_instances().forEach(c => {if(c.close)c.close()});
+    close() {
+        this.all_instances().forEach(c => { if (c.close) c.close() });
     }
-    clean(){
+    clean() {
         this.close();
         super.clean();
     }
@@ -54,14 +57,14 @@ class RosClientManager extends SingletonKeyValueStorage{
     //     this.connect();
     //     return this;
     // }
-    
-    pub_keys(){return this.keys('^ros:pub:*');}
-    sub_keys(){return this.keys('^ros:sub:*');}
-    srv_keys(){return this.keys('^ros:srv:*');}
-    
-    pubs(){return this.pub_keys().map(k=>this.get(k));}
-    subs(){return this.sub_keys().map(k=>this.get(k));}
-    srvs(){return this.srv_keys().map(k=>this.get(k));}
+
+    pub_keys() { return this.keys('^ros:pub:*'); }
+    sub_keys() { return this.keys('^ros:sub:*'); }
+    srv_keys() { return this.keys('^ros:srv:*'); }
+
+    pubs() { return this.pub_keys().map(k => this.get(k)); }
+    subs() { return this.sub_keys().map(k => this.get(k)); }
+    srvs() { return this.srv_keys().map(k => this.get(k)); }
 
     // loads(jsonStr,rosip=null){
     //     super.loads(jsonStr);
@@ -69,99 +72,166 @@ class RosClientManager extends SingletonKeyValueStorage{
     //         .forEach(m => this._set_instance(this._uuid2type(m.uuid),rosip??m.rosip,
     //                                     m.topic_name, m.topic_type, m.rate, m.uuid));
     // }
-    
-    _listener_uuid_2_parent_uuid(uuid){
-        return uuid.replace('_listeners','').replace(':'+uuid.split(':').pop(),'');
+
+    _listener_uuid_2_parent_uuid(uuid) {
+        return uuid.replace('_listeners', '').replace(':' + uuid.split(':').pop(), '');
     }
-    _listener_uuid(uuid){
+    _listener_uuid(uuid) {
         const type = this._uuid2type(uuid)
-        return uuid.replace(type,type+'_listeners')
+        return uuid.replace(type, type + '_listeners')
     }
-    _set_new_sub_listener(sub_uuid,listener_fun){
+    _set_new_sub_listener(sub_uuid, listener_fun) {
         const listener_uuid = `${this._listener_uuid(sub_uuid)}:${this.randuuid()}`;
-        this.set(listener_uuid,listener_fun);
+        this.set(listener_uuid, listener_fun);
         return listener_uuid;
     }
-    _first_sub_uuid(topic_name){
-        const uuid = this.sub_keys().filter(s=>this.get(s).topic_name==topic_name)[0];
+    _first_sub_uuid(topic_name) {
+        const uuid = this.sub_keys().filter(s => this.get(s).topic_name == topic_name)[0];
         return uuid;
     }
-    get_sub_listener_keys(topic_name){
+    get_sub_listener_keys(topic_name) {
         var k = this._first_sub_uuid(topic_name);
-        return k?this.keys(`${this._listener_uuid(k)}:*`):[];
+        return k ? this.keys(`${this._listener_uuid(k)}:*`) : [];
     }
-    add_sub_listener(rosip, topic_name, topic_type, listener_fun){
-        if(!this._first_sub_uuid(topic_name)){
-            const uuid = this._add_new_sub(rosip, topic_name, topic_type);                
+    add_sub_listener(rosip, topic_name, topic_type, listener_fun) {
+        if (!this._first_sub_uuid(topic_name)) {
+            const uuid = this._add_new_sub(rosip, topic_name, topic_type);
             this.get(uuid).connectROS({
-                onError: (e) => {console.log(e)},
-                onConnection: () => {this._set_new_sub_listener(uuid,listener_fun)},
-                onClose: () => {}
-            });  
+                onError: (e) => { console.log(e) },
+                onConnection: () => { this._set_new_sub_listener(uuid, listener_fun) },
+                onClose: () => { }
+            });
         }
     }
-    delete_sub_listener(uuid){
+    delete_sub_listener(uuid) {
         const sub_uuid = this._listener_uuid_2_parent_uuid(uuid);
         const topic_name = this.get(sub_uuid).topic_name;
         this.delete(uuid);
-        if (this.get_sub_listener_keys(topic_name).length==0){
-          this.get(sub_uuid).close();
-          this.delete(sub_uuid);
+        if (this.get_sub_listener_keys(topic_name).length == 0) {
+            this.get(sub_uuid).close();
+            this.delete(sub_uuid);
         }
     }
 }
 
 
-class RosAbstractModel{
-    constructor(empty=false) {
+// # ROS2 components : pub/sub, service
+
+// # class == Namespace Path
+// #   variable == Final Endpoint Namespace Path
+// #   function starts with "_srv_" == Service
+// #   function starts with "_act_" == Action
+
+// # streaming direction => input or output
+// #    output : Pub a topic
+// #    output == variable == Pub a topic
+
+// #    input  : The instance try to Sub a topic, passive  (try Sub)
+// #    input == try Sub == {_}variable ({__}variable is private)
+
+/////////// rules
+
+// /app/app_state -> /app/_app_state
+const RosPathAddUnderscore = (path)=>{
+    const p = path.split("/");
+    p[p.length-1] = "_"+p[p.length-1];
+    return p.join("/");
+}
+// /app/_app_state -> /app/app_state
+const RosPathDelUnderscore = (path)=>{
+    const p = path.split("/");
+    p[p.length-1] = p[p.length-1].slice(1);
+    return p.join("/");
+
+}
+// /app/app_state -> return root_obj.app.app_state
+const RosPathToObjParam = (path,root_obj)=>{
+    let param = root_obj;
+    for (const i of path.split('/')) {
+        if (i.length === 0) continue;
+        param = param[i];
+    }
+    return param;
+}
+
+const isPrivateParam = (paramName="",param=null)=>{
+    const last_paramName = paramName.split("/").pop()
+    return last_paramName.startsWith('__') || paramName.includes('/__');
+}
+
+const isSubParam = (paramName="",param=null) => {
+    const last_paramName = paramName.split("/").pop()
+    return last_paramName.startsWith('_') || paramName.includes('/_');
+}
+
+const isFunction = (paramName=null,param=null) => {
+    return typeof param === 'function';
+}
+
+const isPrimitiveParam = (paramName=null,param=null) => {
+    if(param === null)return true;
+    if(isFunction(param))return true;
+    if(param.hasOwnProperty('__empty_ros_message'))return true;
+    if(!param.hasOwnProperty('___pubsub_ros_model'))return true;
+    return false;
+}
+
+const isPubModel = (paramName=null,param=null) => {
+    return param.___pubsub_ros_model == 'pub';
+}
+
+const filterObject = (data,compare=(key)=>{return true}) => {    
+    const tmp_data = {};
+    for (const key in data) {
+        if (compare(key)) {
+            tmp_data[key] = data[key];
+        }
+    }
+    return tmp_data;
+}
+
+//////////////////////////////////////// rules end
+
+class RosAbstractModel {
+    constructor(empty = false) {
         // super();
-        this.___pubsub = 'pub';
-        if(empty)return;
+        this.___pubsub_ros_model = 'pub';
+        if (empty) return;
 
         // Publishers
-        // BH -> UI, 1000ms, std_msgs/msg/Int32
         // this.app_state = null//std_msgs.msg.Int32();
 
         // Subscribers
-        // UI -> BH, XXms, std_msgs/msg/Float32MultiArray
         // this._operation_cmd = null//std_msgs.msg.Float32MultiArray();
     }
 
     // service topic with "_srv_" , action topic with "_act_" ,
     // _srv_someservice(){}
 
-    
-    _is_private(param_name) {
-        return param_name.includes('__') || param_name.includes('/__');
-    }
 
-    _is_sub(param_name) {
-        return param_name.startsWith('_') || param_name.includes('/_');
-    }
+    _is_private(param_name) {return isPrivateParam(param_name)};
+    _is_sub(param_name) {return isSubParam(param_name)};
+    _is_function(param) {return isFunction("",param)};
+    _is_primitive(param) {return isPrimitiveParam("",param)};
+    _is_pub_model() {return isPubModel("",this)};
+
+    _get_pubs() {return this._dfs(this).filter(([is_f, n, v]) => !is_f && !this._is_sub(n));}
+    _get_subs() {return this._dfs(this).filter(([is_f, n, v]) => !is_f && this._is_sub(n));}
+    _get_srvs() {return this._dfs(this).filter(([isFunc, n, v]) => isFunc);}
 
     _get_pubs_path() {
         const name = this.constructor.name;
-        const params = this._dfs(this);
-        return params.filter(([isFunc, n, v]) => !isFunc && !this._is_sub(n)).map(([isFunc, i,v]) => `${name}/${i}  :  ${v.getTopicType()}`);
+        return this._get_pubs().map(([isFunc, n, v]) => `${name}/${n}  :  ${v.getTopicType()}`);
     }
 
     _get_subs_path() {
         const name = this.constructor.name;
-        const params = this._dfs(this);
-        return params.filter(([isFunc, n, v]) => !isFunc && this._is_sub(n)).map(([isFunc, i,v]) => `${name}/${i}  :  ${v.getTopicType()}`);
+        return this._get_subs().map(([isFunc, n, v]) => `${name}/${n}  :  ${v.getTopicType()}`);
     }
 
     _get_srvs_path() {
         const name = this.constructor.name;
-        return this._dfs(this).filter(([isFunc]) => isFunc).map(([isFunc, n]) => `${name}/${n}`);
-    }
-
-    _is_function(param) {
-        return typeof param === 'function';
-    }
-
-    _is_primitive(param) {
-        return param === null || this._is_function(param) || param.hasOwnProperty('__empty');
+        return this._get_srvs().map(([isFunc, n, v]) => `${name}/${n}  :  [TODO]service type`);
     }
 
     _dfs(param, path = '', isFunc = false, onlyFunc = false) {
@@ -173,7 +243,7 @@ class RosAbstractModel{
             for (const [key, value] of Object.entries(param)) {
                 if (this._is_private(key)) continue;
                 const isFunction = this._is_function(value);
-                if (isFunction && (!key.startsWith('_srv_') || !key.startsWith('_act_') )) continue;
+                if (isFunction && (!key.startsWith('_srv_') || !key.startsWith('_act_'))) continue;
                 const newPath = `${path}/${key}`;
                 paths.push(...this._dfs(value, newPath, isFunction, onlyFunc));
             }
@@ -181,26 +251,10 @@ class RosAbstractModel{
         return paths;
     }
 
-    _isPubModel() {
-        return this.___pubsub == 'pub';
-    }
-
-    _isPrivate(paramName) {
-        return paramName.includes('__') || paramName.includes('/__');
-    }
-
-    _isSub(paramName) {
-        return paramName.startsWith('_') || paramName.includes('/_');
-    }
-
-    _isPrimitive(obj) {
-        return !obj.hasOwnProperty('___pubsub');
-    }
-
     _pubs() {
         const menbers = {};
         for (const key in this) {
-            if (this.hasOwnProperty(key) && this._isPrimitive(key) && !this._isSub(key) && !this._isPrivate(key)) {
+            if (this._is_primitive(key) && !this._is_sub(key) && !this._is_private(key)) {
                 menbers[key] = this[key];
             }
         }
@@ -209,16 +263,16 @@ class RosAbstractModel{
     _subs() {
         const menbers = {};
         for (const key in this) {
-            if (this.hasOwnProperty(key) && this._isPrimitive(key) && this._isSub(key) && !this._isPrivate(key)) {
+            if (this._is_primitive(key) && this._is_sub(key) && !this._is_private(key)) {
                 menbers[key] = this[key];
             }
         }
         return menbers;
     }
     _to_subs(obj) {
-        obj = {...obj};
+        obj = { ...obj };
         for (const key in obj) {
-            if (obj.hasOwnProperty(key) && !key.startsWith('_')) {
+            if (!key.startsWith('_')) {
                 const newKey = `_${key}`; // Add "_" to the beginning
                 obj[newKey] = obj[key];   // Assign the value to the new key
                 delete obj[key];          // Delete the old key
@@ -227,9 +281,9 @@ class RosAbstractModel{
         return obj;
     }
     _to_pubs(obj) {
-        obj = {...obj};
+        obj = { ...obj };
         for (const key in obj) {
-            if (obj.hasOwnProperty(key) && key.startsWith('_')) {
+            if (key.startsWith('_')) {
                 const newKey = key.slice(1); // Remove the first character
                 obj[newKey] = obj[key];      // Assign the value to the new key
                 delete obj[key];             // Delete the old key
@@ -239,44 +293,43 @@ class RosAbstractModel{
     }
 
     _toPubModel() {
-        var res = this._isPubModel()?this:this._switchModel();
-        res.___pubsub = 'pub';
+        var res = this._is_pub_model() ? this : this._switchModel();
+        res.___pubsub_ros_model = 'pub';
         return res;
     }
 
     _toSubModel() {
-        var res = this._isPubModel()?this._switchModel():this;
-        res.___pubsub = 'sub';
+        var res = this._is_pub_model() ? this._switchModel() : this;
+        res.___pubsub_ros_model = 'sub';
         return res;
     }
-    
+
     _switchModel() {
         const instance = new this.constructor(true);
-        const ispub = this._isPubModel();
+        const ispub = this._is_pub_model();
         for (const key in this) {
-            if (!this._isPrimitive(this[key])) {
-                if(this[key]._isPubModel()){
+            if (!this._is_primitive(this[key])) {
+                if (this[key]._isPubModel()) {
                     instance[`_${key}`] = this[key]._toSubModel();
                 }
-                else{
+                else {
                     instance[key.slice(1)] = this[key]._toPubModel();
-                }                
+                }
             }
         }
-        // console.log(instance);
         Object.assign(instance, this._to_subs(this._pubs()));
         Object.assign(instance, this._to_pubs(this._subs()));
-        instance.___pubsub = ispub?'sub':'pub';
+        instance.___pubsub_ros_model = ispub ? 'sub' : 'pub';
         return instance
     }
 
     _randomSetMembers() {
         for (const key in this) {
-            if(this._isPrivate(key))continue;
-            if(this[key].hasOwnProperty('__empty')){
+            if (this._is_private(key)) continue;
+            if (this[key].hasOwnProperty('__empty_ros_message')) {
                 this[key].randomSetMembers();
             }
-            else{
+            else {
                 this[key]._randomSetMembers();
             }
         }
@@ -286,43 +339,79 @@ class RosAbstractModel{
 
 
 /// ros messages 
-class RosMessageBase {
+class RosMessageBase extends EventDispatcherController {
     constructor(empty = true) {
-        this.__empty = empty;
+        super();
+        this.__empty_ros_message = empty;
+        this.__topic_name = null;
+        this.__pubsub_ros_message = null;
+        this.__rosconn = null;
     }
-    
-    empty() { return this.__empty; }
+
+    empty() { return this.__empty_ros_message; }
 
     toRosBridgeFormat() {
-        const publicData = {};
-        for (const key in this) {
-            if (this.hasOwnProperty(key) && !key.startsWith('__')) {
-                publicData[key] = this[key];
-            }
-        }
-        return publicData;
+        return filterObject(this,(key)=> this.hasOwnProperty(key) && !key.startsWith('__'));
     }
 
     fromRosBridgeFormat(data) {
-        const instance = new this.constructor();
-        obj = Object.assign(instance, data);
-        this.__empty = false;        
-        Object.assign(this, obj);
+        Object.assign(this, filterObject(data,(key)=> this.hasOwnProperty(key) && !key.startsWith('_')) );
         return this;
     }
+
+    buildRosConn(rosip, topic_name, conn_type = "sub", rate=10) {
+
+        if(conn_type=="sub"){
+            this.__topic_name = RosPathDelUnderscore(topic_name);
+        }
+        else{
+            this.__topic_name = topic_name;
+        }
+
+        const _this = this;
+        this.__rosconn = new ({ 'pub': RosPublisher, 'sub': RosSubscriber, 'srv': RosService
+        }[conn_type])(rosip, this.__topic_name, this.getTopicType(), rate);
+        console.log(rosip, this.__topic_name, this.getTopicType(), rate);
+        this.__rosconn.connectROS({
+            onError: (error) => { this.__pubsub_ros_message = null; this.destroyRosConn();},
+            onConnection: () => { 
+                this.__pubsub_ros_message = conn_type;
+                if (conn_type = "sub") {
+                    this.__rosconn.subscribe = (msg) => {
+                        _this.fromRosBridgeFormat(msg);
+                        _this.dispatch('subscribe', _this);
+                    }
+                }
+            },
+            onClose: () => { this.destroyRosConn(); }
+        }); 
+    }
+
+    destroyRosConn() {
+        this.__rosconn.destroy();
+        this.__rosconn = null;
+    }
+
+    sub(sub_msg_callbak = (msg) => { }) {
+        const uuid = this.set_event('subscribe', sub_msg_callbak);
+        return uuid;
+    }
+
+    pub(data=null) { 
+        if(data)this.fromRosBridgeFormat(data);
+        this.__rosconn.publish(this.toRosBridgeFormat()); 
+    };
 
     getTopicType() {
         return this.constructor.name.replace(/__/g, '/');
     }
-    
-    _isPrivate(paramName) {
-        return paramName.includes('__') || paramName.includes('/__');
-    }
+
+    _isPrivate(paramName) {return isPrivateParam(paramName)}
 
     randomSetMembers() {
         const dfsRandomSet = (obj) => {
             for (let key in obj) {
-                if ( !this._isPrivate(key) && typeof obj[key] === 'object' && obj[key] !== null) {
+                if (!this._isPrivate(key) && typeof obj[key] === 'object' && obj[key] !== null) {
                     // Recursively set values for nested objects
                     dfsRandomSet(obj[key]);
                 } else if (typeof obj[key] === 'number') {
@@ -344,7 +433,7 @@ class RosMessageBase {
 class nav_msgs__msg__Odometry extends RosMessageBase {
     constructor() {
         super();
-        this.header = {seq:0,time:"20241010T00:00:00",frame_id:"null"};
+        this.header = { seq: 0, time: "20241010T00:00:00", frame_id: "null" };
         this.child_frame_id = "null";
         this.pose = { position: { x: 0, y: 0, z: 0 }, orientation: { x: 0, y: 0, z: 0, w: 1 } };
         this.twist = { linear: { x: 0, y: 0, z: 0 }, angular: { x: 0, y: 0, z: 0 } };
@@ -354,7 +443,7 @@ class nav_msgs__msg__Odometry extends RosMessageBase {
 class sensor_msgs__msg__JointState extends RosMessageBase {
     constructor() {
         super();
-        this.header = {seq:0,time:"20241010T00:00:00",frame_id:"null"};
+        this.header = { seq: 0, time: "20241010T00:00:00", frame_id: "null" };
         this.name = [];
         this.position = [];
         this.velocity = [];
@@ -405,7 +494,7 @@ class visualization_msgs__msg__MarkerArray extends RosMessageBase {
 class visualization_msgs__msg__Marker extends RosMessageBase {
     constructor() {
         super();
-        this.header = {seq:0,time:"20241010T00:00:00",frame_id:"null"};
+        this.header = { seq: 0, time: "20241010T00:00:00", frame_id: "null" };
         this.ns = '';
         this.id = 0;
         this.type = 0;
@@ -422,7 +511,7 @@ class visualization_msgs__msg__Marker extends RosMessageBase {
 class nav_msgs__msg__Path extends RosMessageBase {
     constructor() {
         super();
-        this.header = {seq:0,time:"20241010T00:00:00",frame_id:"null"};
+        this.header = { seq: 0, time: "20241010T00:00:00", frame_id: "null" };
         this.poses = [];
     }
 
@@ -437,7 +526,7 @@ class nav_msgs__msg__Path extends RosMessageBase {
 class geometry_msgs__msg__PoseStamped extends RosMessageBase {
     constructor() {
         super();
-        this.header = {seq:0,time:"20241010T00:00:00",frame_id:"null"};
+        this.header = { seq: 0, time: "20241010T00:00:00", frame_id: "null" };
         this.pose = { position: { x: 0, y: 0, z: 0 }, orientation: { x: 0, y: 0, z: 0, w: 1 } };
     }
 }
@@ -484,61 +573,55 @@ std_msgs.msg.String = std_msgs__msg__String;
 std_msgs.msg.Int32 = std_msgs__msg__Int32;
 
 
-class RosAbstractBase {
-}
-
-// class TestRosAbstractBase extends RosAbstractBase {
-//     constructor() {
-//         super();
-//         this.name = 'It is a test.';
-//         this.time = 154541352;
-//         this._weather = null;
-//     }
-
-//     who_I_am() {
-//         return `${this.name} ${this.time}`;
-//     }
-// }
-
 class RosRoot extends RosAbstractModel {
     constructor() {
         super();
-        // this.test = new TestRosAbstractBase();
     }
 
-    _get_srvs() {
-        const name = this.constructor.name;
-        const fs = super._get_srvs();
-        return fs.filter(f => ![
-            `${name}//sub_topic`,
-            `${name}//call_service`,
-            `${name}//all_list`,
-            `${name}//service_list`,
-            `${name}//topic_list`
-        ].includes(f));
+    connect(rosip){
+        this._get_pubs().forEach(([isFunc,path,obj])=>{
+            obj.buildRosConn(rosip,path,'pub');
+        })
+        this._get_subs().forEach(([isFunc,path,obj])=>{
+            obj.buildRosConn(rosip,path,'sub');
+        })
+
     }
 
-    sub_topic(path, ...args) {
-        if (this._is_sub(path)) return 'Cannot sub a "try Sub" topic';
-        let param = this;
-        for (const i of path.split('/')) {
-            if (i.length === 0) continue;
-            param = param[i];
-            if (!this._is_function(param) && this._is_primitive(param)) {
-                return param;
-            }
+    pub_topic(path, ...args) {
+        if (this._is_sub(path)) return 'Cannot pub a "try Sub" topic';
+        const param = RosPathToObjParam(path,this);
+        if (!this._is_function(param) && this._is_primitive(param)) {
+            param.pub(...args);
+        }
+    }
+
+    sub_topic(path, sub_msg_callbak = (msg) => { }) {
+        // root.app._operation_cmd.add_sub_listener((msg)=>{console.log(msg)});
+        // root.sub_topic("/app/operation_cmd",(msg)=>{console.log(msg)});
+        if (this._is_sub(path)) return 'Cannot pub a "try Sub" topic';
+        path = RosPathAddUnderscore(path)
+        const param = RosPathToObjParam(path,this);
+        if (!this._is_function(param) && this._is_primitive(param)) {
+            param.sub(sub_msg_callbak);
+        }
+    }
+
+    echo_topic(path) {
+        if (this._is_sub(path)) return 'Cannot echo a "try Sub" topic';
+        path = RosPathAddUnderscore(path)
+        const param = RosPathToObjParam(path,this);
+        if (!this._is_function(param) && this._is_primitive(param)) {
+            return param;
         }
         return null;
     }
 
     call_service(path, ...args) {
-        let param = this;
-        for (const i of path.split('/')) {
-            if (i.length === 0) continue;
-            param = param[i];
-            if (this._is_function(param)) {
-                return param(...args);
-            }
+        path = RosPathAddUnderscore(path)
+        const param = RosPathToObjParam(path,this);
+        if (this._is_function(param)) {
+            return param(...args);
         }
         return null;
     }
@@ -574,37 +657,4 @@ class RosRoot extends RosAbstractModel {
     }
 }
 
-// const root = new RosRoot();
-// console.log(root.all_list());
-// console.log(root.call_service('/test/who_I_am'));
-// console.log(root.sub_topic('/test/name'));
-
-
-// tests 
-
-// class VisModel extends RosAbstractModel{
-//     constructor() {
-//         super();
-//         // Publishers
-//         this.app_state = new visualization_msgs.msg.Marker();
-
-//     }
-// }
-// class AppModel extends RosAbstractModel{
-//     constructor() {
-//         super();
-//         // Publishers
-//         // BH -> UI, 1000ms, std_msgs/msg/Int32
-//         this.app_state = new std_msgs.msg.Int32();
-
-//         // Subscribers
-//         // UI -> BH, XXms, std_msgs/msg/Float32MultiArray
-//         this._operation_cmd = new std_msgs.msg.Float32MultiArray();
-//         this._vis = new VisModel();
-
-//     }
-// }
-
-// app = new AppModel();
-
-export { sensor_msgs, rdt_interfaces, visualization_msgs, nav_msgs, geometry_msgs, std_msgs , RosAbstractModel, RosRoot}
+export { sensor_msgs, rdt_interfaces, visualization_msgs, nav_msgs, geometry_msgs, std_msgs, RosAbstractModel, RosRoot }

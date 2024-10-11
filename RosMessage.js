@@ -4,11 +4,9 @@ class RosAbstractModel {
         this.___pubsub = 'pub';
 
         // Publishers
-        // BH -> UI, 1000ms, std_msgs/msg/Int32
         // this.app_state = null//std_msgs.msg.Int32();
 
         // Subscribers
-        // UI -> BH, XXms, std_msgs/msg/Float32MultiArray
         // this._operation_cmd = null//std_msgs.msg.Float32MultiArray();
     }
     _isPubModel() {
@@ -270,7 +268,6 @@ std_msgs.msg.Int32 = std_msgs__msg__Int32;
 //     constructor() {
 //         super();
 //         // Publishers
-//         // BH -> UI, 1000ms, std_msgs/msg/Int32
 //         this.app_state = new visualization_msgs.msg.Marker();
 
 //     }
@@ -279,11 +276,9 @@ std_msgs.msg.Int32 = std_msgs__msg__Int32;
 //     constructor() {
 //         super();
 //         // Publishers
-//         // BH -> UI, 1000ms, std_msgs/msg/Int32
 //         this.app_state = new std_msgs.msg.Int32();
 
 //         // Subscribers
-//         // UI -> BH, XXms, std_msgs/msg/Float32MultiArray
 //         this._operation_cmd = new std_msgs.msg.Float32MultiArray();
 //         this._vis = new VisModel();
 
