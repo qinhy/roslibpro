@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.js"></script>
+    <title>Interactive ROS Gamepad</title>
+</head>
+<body>
+    <div id="app">
+        <gamepad-component></gamepad-component>
+    </div>
+
+    <script type="module">
+        import { GamepadFactory, GamepadDriver, GamepadController } from "./roslibpro/Gamepad/Gamepad.js";
+
+        const { createApp, ref } = Vue;
+
+        createApp({
+            components: {
+                GamepadComponent: {
+                    template: `
+                        <div>
+                            <h2>Gamepad Status: {{ gamepadStatus }}</h2>
+                            <div v-if="gamepadData">
+                                <ul>
+                                    <li v-for="(d, index) in gamepadData" :key="index">
+                                        {{ index }}: {{ d }}
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    `,
+                    setup() {
+                        const gamepadStatus = ref("Disconnected");
+                        const gamepadData = ref(null);
+
+                        const driver = new GamepadDriver();
+
+                        driver.addEventListener('on_gamepadconnected', (event) => {
+                            gamepadStatus.value = "Connected";
+                            
+                            const model = event.event.gamepad.id.includes("DirectInput")
+                                ? GamepadFactory.gamepad('DirectInput')
+                                : GamepadFactory.gamepad('XInput');
+
+                            driver.loop(model);
+
+                            const controller = new GamepadController(model);
+
+                            controller.onValueChanged((data) => {
+                                gamepadData.value = { ...data.gamepad };
+                            });
+
+                            controller.onPowered(() => {
+                                console.log("Get started");
+                            });
+                        });
+
+                        driver.addEventListener('on_gamepaddisconnected', () => {
+                            gamepadStatus.value = "Disconnected";
+                            gamepadData.value = null;
+                            driver.stop_loop();
+                        });
+
+                        return {
+                            gamepadStatus,
+                            gamepadData
+                        };
+                    }
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
