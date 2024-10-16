@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.js"></script>
+    <title>Test</title>
+</head>
+
+<body>    
+    <script type="module">        
+        import { sensor_msgs, rdt_interfaces, visualization_msgs, nav_msgs, geometry_msgs, std_msgs , RosAbstractModel, RosRoot} from "./roslibpro/RosMessage.js";        
+        import { GamepadFactory, GamepadDriver, GamepadController } from "./roslibpro/Gamepad/Gamepad.js";
+
+        class GamepadModel extends RosAbstractModel{
+            constructor(empty=false) {
+                super(empty);
+                if(empty)return;
+                this.___pubsub_ros_model = 'pub';
+
+                // Publishers
+                this.gamepad_state = new std_msgs.msg.Float32MultiArray();
+
+            }
+        }
+
+        const root = new RosRoot();
+        root.app = new GamepadModel();
+        root.connect('192.168.1.29:9090');
+        window.root = root;
+
+
+        const driver = new GamepadDriver();
+        var model = null;
+        var controller = null;
+        var intervalId = null
+        driver.addEventListener('on_gamepadconnected', (event) => {
+            console.log('on_gamepadconnected');
+            
+            model = event.event.gamepad.id.includes("DirectInput")
+                ? GamepadFactory.gamepad('DirectInput')
+                : GamepadFactory.gamepad('XInput');
+
+            driver.loop(model);
+
+            controller = new GamepadController(model);
+
+            controller.onPowered(() => {
+                if(intervalId)return;
+
+                console.log("Get started");
+                const pub_gamepad = ()=>{
+                    if(model){
+                        console.log(model.toRosFormat());
+                        window.root.app.gamepad_state.pub({data:model.toRosFormat()});
+                    }
+                    
+                }
+                intervalId = setInterval(pub_gamepad, 100);
+            });
+        });
+
+        driver.addEventListener('on_gamepaddisconnected', () => {
+            driver.stop_loop();
+            model.dispose();
+            controller.dispose();
+            clearInterval(intervalId);
+            intervalId=null;
+        });
+        // window.root.app.app_state.pub({data:100});
+
+    </script>
+</body>
+
+</html>

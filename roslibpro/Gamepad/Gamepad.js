@@ -101,18 +101,6 @@ class Gamepad extends EventDispatcher{
 
     this.leftStickButton = false; // Clickable stick
     this.rightStickButton = false; // Clickable stick
-
-    // this.resetValue();
-    // this.addEventListener("ticked", this.onTicked);
-    // this.addEventListener("gamepadConnected", this.onGamepadConnected);
-    // this.addEventListener("gamepadDisconnected", this.onGamepadDisconnected);
-    // this.addEventListener("valueChanged", this.onCheckPowerOn);
-
-    // this.rosRate = rosRate;
-  }
-
-  dispose() {
-    // this.removeEventListener("valueChanged", this.onCheckPowerOn);
   }
 
   diff_from(previous) {
@@ -124,129 +112,14 @@ class Gamepad extends EventDispatcher{
     data.timestamp = this.timestamp;
     return {data,is_diff};
   }  
-
-  // onTicked(e) {
-  //   // Currently disconnected
-  //   if(!e.signal) {
-  //     return;
-  //   }
-
-  //   this.update(e.signal.buttons, e.signal.axes);
-  //   this.diff();
-
-  //   // ROS Publish
-  //   if(!this.isPowered) {
-  //     return;
-  //   }
-  //   const elapsedTime = this.current.timestamp - this.lastRosPublishTimestamp;
-  //   if(elapsedTime >= 1000 / this.rosRate) {
-  //     this.dispatchEvent({
-  //       "type": "rosPublish",
-  //       "data": this.toRosFormat(),
-  //       "elapsedTime" : elapsedTime
-  //     });
-
-  //     this.lastRosPublishTimestamp = this.current.timestamp;
-  //   }
-  // }
-
-  // onGamepadConnected() {
-  //   this.resetValue();
-  // }
-
-  // onGamepadDisconnected() {
-  // }
-
-  // onCheckPowerOn(e) {
-  //   if(e.name === "start" && this.current) {
-  //     this.removeEventListener("valueChanged", this.onCheckPowerOn);
-
-  //     this.dispatchEvent({
-  //       "type": "powered"
-  //     });
-
-  //     this.lastRosPublishTimestamp = Date.now();
-  //   }
-  // }
-
-  // get isPowered() {
-  //   return !this.hasEventListener("valueChanged", this.onCheckPowerOn);
-  // }
-
   
-  // resetValue() {
-  //   // Triggers and Bumpers
-  //   this.previous = {};
-  //   this.current = {};
-  //   this.current.leftTrigger = 0; 
-  //   this.current.rightTrigger = 0; 
-  //   this.current.leftBumper = false;
-  //   this.current.rightBumper = false;
-   
-  //   // Buttons
-  //   this.current.buttonA = false;
-  //   this.current.buttonB = false;
-  //   this.current.buttonX = false;
-  //   this.current.buttonY = false;
-   
-  //   // D-Pad
-  //   this.current.dPadUp = false;
-  //   this.current.dPadDown = false;
-  //   this.current.dPadLeft = false;
-  //   this.current.dPadRight = false;
-   
-  //   // Sticks (axes)
-  //   this.current.leftStickX = 0; // Range from -1 to 1
-  //   this.current.leftStickY = 0; // Range from -1 to 1
-   
-  //   this.current.rightStickX = 0; // Range from -1 to 1
-  //   this.current.rightStickY = 0; // Range from -1 to 1
-
-  //   // Other Buttons
-  //   this.current.start = false;
-  //   this.current.select = false; // back
-  //   this.current.home = false;
-
-  //   this.current.leftStickButton = false; // Clickable stick
-  //   this.current.rightStickButton = false; // Clickable stick
-
-  //   this.lastRosPublishTimestamp = 0;
-  //   this.addEventListener("valueChanged", this.onCheckPowerOn);
-  // }
-  // diff() {
-  //   if(Object.keys(this.previous).length == 0 ) {
-  //     return;
-  //   }
-
-  //   for(let key in this.current) {
-  //     if (key == "timestamp") {
-  //       continue;
-  //     }
-  //     // if( key == "start" && this.isPowered) {
-  //     //   continue;
-  //     // }
-  //     // if( key != "start" && !this.isPowered) {
-  //     //   continue;
-  //     // }
-
-  //     if(this.current[key] != this.previous[key]) {
-  //       this.dispatchEvent({
-  //         "type": "valueChanged",
-  //         "name": key,
-  //         "previous": this.previous[key],
-  //         "current" : this.current[key]
-  //       })
-  //     }
-  //   }
-  // }
-
   // Method to update gamepad state from an input object
   update(buttonArray, axes) {
     const previous = new Gamepad({...this});
 
     // Triggers and Bumpers
-    this.leftTrigger = buttonArray[6].value.toFixed(2); // Range from 0 to 1
-    this.rightTrigger = buttonArray[7].value.toFixed(2); // Range from 0 to 1
+    this.leftTrigger = buttonArray[6].value; // Range from 0 to 1
+    this.rightTrigger = buttonArray[7].value; // Range from 0 to 1
     this.leftBumper = buttonArray[4].pressed;
     this.rightBumper = buttonArray[5].pressed;
    
@@ -263,10 +136,10 @@ class Gamepad extends EventDispatcher{
     this.dPadRight = buttonArray[15].pressed;
    
     // Sticks (axes)
-    this.leftStickX = axes[0].toFixed(2); // Range from -1 to 1
-    this.leftStickY = axes[1].toFixed(2); // Range from -1 to 1 with direction UP-TO-DOWN
-    this.rightStickX = axes[2].toFixed(2); // Range from -1 to 1
-    this.rightStickY = axes[3].toFixed(2); // Range from -1 to 1 with direction UP-TO-DOWN
+    this.leftStickX = axes[0]; // Range from -1 to 1
+    this.leftStickY = axes[1]; // Range from -1 to 1 with direction UP-TO-DOWN
+    this.rightStickX = axes[2]; // Range from -1 to 1
+    this.rightStickY = axes[3]; // Range from -1 to 1 with direction UP-TO-DOWN
     
     // Other Buttons
     this.start = buttonArray[9].pressed;
@@ -300,20 +173,20 @@ class Gamepad extends EventDispatcher{
 
   toRosFormat() {
     const axes = new Array(6);
-    axes[0] = (parseFloat(this.leftStickX)).toFixed(2);
-    axes[1] = (parseFloat(this.leftStickY)).toFixed(2);
-    axes[2] = (-parseFloat(this.rightStickX)).toFixed(2);
-    axes[3] = (-parseFloat(this.rightStickY)).toFixed(2);
-    axes[4] = this.dPadLeft ? '-1.00' : (this.dPadRight ? '1.00' : '0.00');
-    axes[5] = this.dPadUp ? '1.00' : (this.dPadDown ? '-1.00' : '0.00');
+    axes[0] = this.leftStickX;
+    axes[1] = this.leftStickY;
+    axes[2] = -this.rightStickX;
+    axes[3] = -this.rightStickY;
+    axes[4] = this.dPadLeft ? -1.00 : (this.dPadRight ? 1.00 : 0.00);
+    axes[5] = this.dPadUp ? 1.00 : (this.dPadDown ? -1.00 : 0.00);
 
     const data = new Array(6);
-    data[0] = this.leftTrigger == 1 ? axes[1] : '0.00';
-    data[1] = this.rightTrigger == 1 ? axes[3] : '0.00';
-    data[2] = this.leftTrigger == 1 ? axes[0] : '0.00';
-    data[3] = this.rightTrigger == 1 ? axes[2] : '0.00';
-    data[4] = this.leftTrigger == 1 ? axes[5] : '0.00';
-    data[5] = this.leftTrigger == 1 ? axes[4] : '0.00';
+    data[0] = this.leftTrigger == 1 ? axes[1] : 0.00;
+    data[1] = this.rightTrigger == 1 ? axes[3] : 0.00;
+    data[2] = this.leftTrigger == 1 ? axes[0] : 0.00;
+    data[3] = this.rightTrigger == 1 ? axes[2] : 0.00;
+    data[4] = this.leftTrigger == 1 ? axes[5] : 0.00;
+    data[5] = this.leftTrigger == 1 ? axes[4] : 0.00;
     return data;
   }
 }
@@ -331,6 +204,7 @@ class GamepadDirectInput extends Gamepad{
   };
 
   update(buttonArray, axes) {
+    
     const previous = new Gamepad({...this});
 
     const povAzimuth = this._povAzimuth;
@@ -354,11 +228,11 @@ class GamepadDirectInput extends Gamepad{
     this.dPadLeft = [povAzimuth.SW, povAzimuth.W, povAzimuth.NW].find((element) => axes[9].toFixed(3) == element.toFixed(3)) !== undefined;
 
     // Sticks (axes)
-    this.leftStickX = axes[0].toFixed(2); // Range from -1 to 1
-    this.leftStickY = axes[1].toFixed(2); // Range from -1 to 1
+    this.leftStickX = axes[0]; // Range from -1 to 1
+    this.leftStickY = axes[1]; // Range from -1 to 1
    
-    this.rightStickX = axes[2].toFixed(2); // Range from -1 to 1
-    this.rightStickY = axes[5].toFixed(2); // Range from -1 to 1
+    this.rightStickX = axes[2]; // Range from -1 to 1
+    this.rightStickY = axes[5]; // Range from -1 to 1
 
     // Other Buttons
     this.start = buttonArray[11].pressed;
@@ -397,6 +271,7 @@ export class GamepadDriver extends EventDispatcher {
       this.isAborted = true;
   }    
   loop(model=null) {
+      this.isAborted = false;
       // Set up requestAnimationFrame with a fallback for older browsers
       this.rAF = window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame ? 
                   (callback) => window.setTimeout(callback, 1000 / 60):null;
@@ -470,14 +345,9 @@ export class GamepadController extends EventDispatcher {
     this.addEventListener("onPowered", callback);
   }
 
-  // onTimeAtRosPublish(callback) {
-  //   this.addEventListener("rosPublish", callback);
-  // }
-
   dispose() {
     this.removeEventListeners("onValueChanged");
     this.removeEventListeners("onPowered");
-    // this.removeEventListeners("rosPublish");
   }
 };
 

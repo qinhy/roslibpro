@@ -28,6 +28,7 @@
                                         {{ index }}: {{ d }}
                                     </li>
                                 </ul>
+                                <div>{{ JSON.stringify(gamepadData.toRosFormat()) }}</div>
                             </div>
                         </div>
                     `,
@@ -49,7 +50,7 @@
                             const controller = new GamepadController(model);
 
                             controller.onValueChanged((data) => {
-                                gamepadData.value = { ...data.gamepad };
+                                gamepadData.value = data.gamepad;
                             });
 
                             controller.onPowered(() => {

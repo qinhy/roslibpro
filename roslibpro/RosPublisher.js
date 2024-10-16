@@ -8,7 +8,7 @@ export class RosPublisher extends RosAdvance {
         this.pub = ()=>this.topic();
     }
     publish(message) {
-        console.log(message);
+        // console.log(message);
         this.pub().publish(new ROSLIB.Message(message));
     }
 }
