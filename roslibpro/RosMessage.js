@@ -280,7 +280,7 @@ class RosMessageBase extends EventDispatcherController {
     }
 
     destroyRosConn() {
-        this.__rosconn.destroy();
+        if(this.__rosconn)this.__rosconn.destroy();
         this.__rosconn = null;
     }
 
