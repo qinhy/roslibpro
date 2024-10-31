@@ -265,18 +265,19 @@ class RosMessageBase extends EventDispatcherController {
         }[conn_type])(rosip, this.__topic_name, this.getTopicType(), rate);
         console.log(rosip, this.__topic_name, this.getTopicType(), rate);
         this.__rosconn.connectROS({
-            onError: (error) => { this.__pubsub_ros_message = null; this.destroyRosConn();},
+            onError: (error) => { _this.__pubsub_ros_message = null; _this.destroyRosConn();},
             onConnection: () => { 
-                this.__pubsub_ros_message = conn_type;
-                if (conn_type = "sub") {
-                    this.__rosconn.subscribe = (msg) => {
-                        _this.fromRosBridgeFormat(msg);
-                        _this.dispatch('subscribe', _this);
-                    }
-                }
+                _this.__pubsub_ros_message = conn_type;
             },
-            onClose: () => { this.destroyRosConn(); }
-        }); 
+            onClose: () => { _this.destroyRosConn(); }
+        });
+        
+        if (conn_type = "sub") {
+            this.__rosconn.subscribe = (msg) => {
+                this.fromRosBridgeFormat(msg);
+                this.dispatch('subscribe', this);
+            }
+        }
     }
 
     destroyRosConn() {
@@ -462,6 +463,12 @@ class std_msgs__msg__Int32 extends RosMessageBase {
         this.data = data;
     }
 }
+class std_msgs__msg__Float32 extends RosMessageBase {
+    constructor(data = 0) {
+        super();
+        this.data = data;
+    }
+}
 class moveit_msgs__msg__PlanningScene extends RosMessageBase {
     constructor() {
         super();
@@ -520,6 +527,7 @@ geometry_msgs.msg.PoseStamped = geometry_msgs__msg__PoseStamped;
 std_msgs.msg.Bool = std_msgs__msg__Bool;
 std_msgs.msg.String = std_msgs__msg__String;
 std_msgs.msg.Int32 = std_msgs__msg__Int32;
+std_msgs.msg.Float32 = std_msgs__msg__Float32;
 moveit_msgs.msg.PlanningScene = moveit_msgs__msg__PlanningScene;
 
 
@@ -534,6 +542,16 @@ class RosRoot extends RosAbstractModel {
         })
         this._get_subs().forEach(([isFunc,path,obj])=>{
             obj.buildRosConn(rosip,path,'sub');
+        })
+
+    }
+    
+    disconnect(){
+        this._get_pubs().forEach(([isFunc,path,obj])=>{
+            obj.destroyRosConn();
+        })
+        this._get_subs().forEach(([isFunc,path,obj])=>{
+            obj.destroyRosConn();
         })
 
     }
