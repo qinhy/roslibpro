@@ -1,8 +1,5 @@
-
-import { RosPublisher } from "./RosPublisher.js";
-import { RosService } from "./RosService.js";
-import { RosSubscriber } from "./RosSubscriber.js";
-import { EventDispatcherController } from "./EventDispatcher.js";
+import { RosPublisher, RosService, RosSubscriber } from "./RosAdvance.js";
+import { EventDispatcherController } from "./Storages.js";
 
 // # ROS2 components : pub/sub, service
 
@@ -260,8 +257,10 @@ class RosMessageBase extends EventDispatcherController {
         }
 
         const _this = this;
-        this.__rosconn = new ({ 'pub': RosPublisher, 'sub': RosSubscriber, 'srv': RosService
-        }[conn_type])(rosip, this.__topic_name, this.getTopicType(), rate);
+        this.__rosconn = new (
+                            { 'pub': RosPublisher, 'sub': RosSubscriber, 'srv': RosService}[conn_type]
+                        )(rosip, this.__topic_name, this.getTopicType(), rate);
+
         console.log(rosip, this.__topic_name, this.getTopicType(), rate);
         this.__rosconn.connectROS({
             onError: (error) => { _this.__pubsub_ros_message = null; _this.destroyRosConn();},

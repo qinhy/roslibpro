@@ -1,72 +1,7 @@
 
-export class EventDispatcher{
+import { EventDispatcherController } from "./Storages.js";
 
-	constructor(){
-		this._listeners = {};
-	}
-
-	addEventListener(type, listener){
-
-		const listeners = this._listeners;
-
-		if(listeners[type] === undefined){
-			listeners[type] = [];
-		}
-
-		if(listeners[type].indexOf(listener) === - 1){
-			listeners[type].push( listener );
-		}
-
-	}
-
-	hasEventListener(type, listener){
-
-		const listeners = this._listeners;
-
-		return listeners[type] !== undefined && listeners[type].indexOf(listener) !== - 1;
-	}
-
-	removeEventListener(type, listener){
-
-		let listeners = this._listeners;
-		let listenerArray = listeners[type];
-
-		if (listenerArray !== undefined){
-
-			let index = listenerArray.indexOf(listener);
-
-			if(index !== - 1){
-				listenerArray.splice(index, 1);
-			}
-		}
-
-	}
-
-	removeEventListeners(type){
-		if(this._listeners[type] !== undefined){
-			delete this._listeners[type];
-		}
-	};
-
-	dispatchEvent(event){
-
-		let listeners = this._listeners;
-		let listenerArray = listeners[event.type];
-
-		if ( listenerArray !== undefined ) {
-			//event.target = this;
-
-			for(let listener of listenerArray.slice(0)){
-        
-				listener.call(this, event);
-			}
-		}
-
-	}
-
-}
-
-class Gamepad extends EventDispatcher{
+class Gamepad extends EventDispatcherController{
   constructor(data) {
     super();
     
@@ -153,7 +88,7 @@ class Gamepad extends EventDispatcher{
 
     const current = this;
 
-    this.dispatchEvent({'type':'update',current:current,previous:previous});
+    this.dispatch('update',{current:current,previous:previous});
   }
 
 
@@ -245,12 +180,12 @@ class GamepadDirectInput extends Gamepad{
     this.timestamp = Date.now();
 
     const current = this;
-    this.dispatchEvent({'type':'update',current:current,previous:previous});
+    this.dispatch('update',{current:current,previous:previous});
   }
 }
 
 
-export class GamepadDriver extends EventDispatcher {
+export class GamepadDriver extends EventDispatcherController {
   constructor() {
       super();                  
       window.addEventListener("gamepadconnected",(event)=>{this.on_gamepadconnected(event)});
@@ -295,10 +230,10 @@ export class GamepadDriver extends EventDispatcher {
       this.rAF(mainLoop);
   }
   on_gamepadconnected(event){
-          this.dispatchEvent({type: "on_gamepadconnected",event: event});
+          this.dispatch( "on_gamepadconnected",{event: event});
   }
   on_gamepaddisconnected(event){
-      this.dispatchEvent({type:'on_gamepaddisconnected',event:event});
+      this.dispatch('on_gamepaddisconnected',{event:event});
   }                
   dispose(){
       window.removeEventListener("gamepadconnected",this.on_gamepadconnected);
@@ -322,7 +257,7 @@ export class GamepadController extends EventDispatcher {
   constructor(model) {
     super();
     this.model = model;
-    this.model.addEventListener('update',(event)=>{this._on_update(event)});
+    this.model.set_event('update',(event)=>{this._on_update(event)});
   } 
   
   _on_update(event){
@@ -331,18 +266,18 @@ export class GamepadController extends EventDispatcher {
     
     const {data,is_diff} = current.diff_from(new Gamepad());
     if(is_diff) {
-      this.dispatchEvent({'type':'onValueChanged',gamepad:data});
+      this.dispatch('onValueChanged',{gamepad:data});
     }
     if(data.start){      
-      this.dispatchEvent({'type':'onPowered',gamepad:data});
+      this.dispatch('onPowered',{gamepad:data});
     }
   }
   onValueChanged(callback) {
-    this.addEventListener("onValueChanged", callback);
+    this.set_event("onValueChanged", callback);
   }
 
   onPowered(callback) {
-    this.addEventListener("onPowered", callback);
+    this.set_event("onPowered", callback);
   }
 
   dispose() {
