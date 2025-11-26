@@ -1,4 +1,4 @@
-import { RosSubscriber } from "./RosSubscriber.js";
+import { RosSubscriber } from "./RosAdvance.js";
 import * as THREE from "../libs/threejs/three.module.js";
 import {Spectral_r} from "../libs/js-colormaps/js-colormaps.js";
 
@@ -74,6 +74,7 @@ export class RosPointCloud2Subscriber extends RosSubscriber{
             return (offset, littleEndian) => {return 0.0};
         }
     }
+    
     _base64decode(base64) {
         var binary_string = window.atob(base64);
         var len = binary_string.length;
@@ -143,7 +144,7 @@ export class RosPointCloud2Subscriber extends RosSubscriber{
         //   {type: "path", data: [0, 0, 1, 0], color: "#f06060", lineWidth: 2},
         //   {type: "points", data: points, zmin: zmin, zmax: zmin + zrange},
         // ]);
-}
+    }
 
     decodeAndRenderUncompressed(msg) {
         // decode an uncompressed pointcloud.

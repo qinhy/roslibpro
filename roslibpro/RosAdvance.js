@@ -52,3 +52,60 @@ export class RosAdvance extends RosBase {
         super.close(is_self_closed);
     }
 }
+
+export class RosPublisher extends RosAdvance {
+    constructor(rosip, topic_name, topic_type, rate = 10) {
+        super(rosip, topic_name, topic_type, rate, false);
+    }
+    createTopic() {
+        this.pub = ()=>this.topic();
+    }
+    publish(message) {
+        // console.log(message);
+        this.pub().publish(new ROSLIB.Message(message));
+    }
+}
+
+export class RosService extends RosAdvance {
+    constructor(rosip, topic_name, topic_type, rate = 10) {
+        super(rosip, topic_name, topic_type, rate, true);
+    }
+    callService(param = {}, timeout = 1000) {
+        if(!this.topic()){
+            throw Error('You must call connectROS(...) at first!')
+        }
+        const client = this.topic();
+        const _this = this;
+        // this.service_response = null;
+        return new Promise((resolve, reject) => {
+            try {
+                client.callService(
+                    new ROSLIB.ServiceRequest(param), 
+                    function (result) {
+                        _this.service_response = result;
+                        resolve(result);
+                });
+            } catch (err) {
+                reject(err);
+            }
+        });
+
+    }
+}
+
+export class RosSubscriber extends RosAdvance {
+    constructor(rosip, topic_name, topic_type, rate = 10) {
+        super(rosip, topic_name, topic_type, rate, false);
+    }
+    createTopic() {
+        this.sub = ()=>this.topic();
+        const _this = this;
+        this.sub().subscribe(message => {
+            message._topic_type = _this.topic_type;
+            this.subscribe(message);
+        });
+    }
+    subscribe(message) {
+        console.error(this.constructor.name, "function of subscribe not defined, need to override it");
+    }
+}

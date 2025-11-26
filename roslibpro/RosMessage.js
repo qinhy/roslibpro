@@ -2,7 +2,6 @@
 import { RosPublisher } from "./RosPublisher.js";
 import { RosService } from "./RosService.js";
 import { RosSubscriber } from "./RosSubscriber.js";
-import { SingletonKeyValueStorage } from "./Storages.js";
 import { EventDispatcherController } from "./EventDispatcher.js";
 
 // # ROS2 components : pub/sub, service
